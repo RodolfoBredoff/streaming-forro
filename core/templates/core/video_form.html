@@ -1,0 +1,9 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h2>Upload de Vídeo</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Salvar</button>
+</form>
+{% endblock %}

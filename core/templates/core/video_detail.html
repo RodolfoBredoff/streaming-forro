@@ -1,0 +1,11 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<a href="{% url 'video-list' %}" class="btn btn-outline-light mb-3">Voltar</a>
+<h2>{{ video.titulo }}</h2>
+<div class="ratio ratio-16x9">
+    <video controls controlsList="nodownload">
+        <source src="{{ video.arquivo.url }}" type="video/mp4">
+        Seu navegador não suporta vídeos.
+    </video>
+</div>
+{% endblock %}
