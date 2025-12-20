@@ -82,9 +82,12 @@ AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https:'
 AWS_QUERYSTRING_AUTH = False 
 
-# Se tiver as chaves da AWS configuradas, usa S3. Se não, usa local (para teste)
-if AWS_ACCESS_KEY_ID:
+# streaming_project/settings.py
+
+# Se o nome do bucket estiver configurado, usamos o S3
+if AWS_STORAGE_BUCKET_NAME:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    # O boto3 tentará encontrar as credenciais automaticamente (IAM Role)
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
