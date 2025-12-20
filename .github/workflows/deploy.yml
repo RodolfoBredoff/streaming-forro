@@ -14,31 +14,10 @@ jobs:
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # Instalar dependencias do sistema (só roda se não tiver instalado)
-          sudo apt-get update
-          sudo apt-get install -y python3-pip python3-venv nginx
-          
-          # Preparar pasta
-          mkdir -p /home/ubuntu/app
           cd /home/ubuntu/app
-          
-          # Se o git não existir, clona. Se existir, puxa.
-          if [ ! -d ".git" ]; then
-            git clone https://github.com/RodolfoBredoff/streaming-forro.git .
-          else
-            git pull origin main
-          fi
-          
-          # Configurar Python
-          python3 -m venv venv
+          git pull origin main
           source venv/bin/activate
           pip install -r requirements.txt
-          
-          # Banco de dados e Estáticos
           python manage.py migrate
           python manage.py collectstatic --noinput
-          
-          # Reiniciar Gunicorn (se existir)
-          if systemctl is-active --quiet gunicorn; then
-            sudo systemctl restart gunicorn
-          fi
+          sudo systemctl restart gunicorn
