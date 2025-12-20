@@ -19,7 +19,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'storages', # Lib para S3
-    'core',     # Seu app
+    'streaming_project.core',     # Seu app
 ]
 
 MIDDLEWARE = [
