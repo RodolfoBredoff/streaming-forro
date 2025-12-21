@@ -73,25 +73,33 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 
-# Configuração AWS S3 (Para Uploads de Mídia)
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+# Configuração AWS S3
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN')
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https:'
-AWS_QUERYSTRING_AUTH = False 
+AWS_QUERYSTRING_AUTH = False
 
-# streaming_project/settings.py
+# Adicione a região (Importante para IAM Role!)
+AWS_S3_REGION_NAME = 'us-east-1'  # Ou a região onde criou o bucket (ex: sa-east-1)
 
-# Se o nome do bucket estiver configurado, usamos o S3
+# Lógica de Autenticação Híbrida (Chaves Manuais OU IAM Role)
+if os.getenv('AWS_ACCESS_KEY_ID'):
+    # Se houver chaves no .env, usa elas (bom para desenvolvimento local)
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+else:
+    # Se NÃO houver chaves, limpa as variáveis para forçar o Boto3 a buscar a IAM Role
+    AWS_ACCESS_KEY_ID = None
+    AWS_SECRET_ACCESS_KEY = None
+
+# Definição do Storage
 if AWS_STORAGE_BUCKET_NAME:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    # O boto3 tentará encontrar as credenciais automaticamente (IAM Role)
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
+    
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # streaming_project/settings.py
 USE_X_FORWARDED_HOST = True
