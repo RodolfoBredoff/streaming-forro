@@ -87,6 +87,24 @@ AWS_S3_URL_PROTOCOL = 'https:'
 AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
 
+# streaming_project/settings.py
+
+# ... (Mantenha as configurações de AWS_ACCESS_KEY_ID, AWS_STORAGE_BUCKET_NAME, etc, que definimos antes)
+
+# NOVA CONFIGURAÇÃO (Django 4.2+)
+# Isso substitui o DEFAULT_FILE_STORAGE e garante que o backend padrão seja o S3
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            # Se quiser, pode passar parâmetros extras aqui, mas os do settings global já resolvem
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 # Lógica para usar chaves APENAS se existirem, senão usa IAM Role
 if os.getenv('AWS_ACCESS_KEY_ID'):
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
@@ -98,8 +116,6 @@ else:
     pass 
 
 # Forçar Storage para S3
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Proxy Headers (Necessário para Nginx)
