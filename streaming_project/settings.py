@@ -3,6 +3,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv() # Carrega variáveis do arquivo .env
+env_path = Path(__file__).resolve().parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -99,7 +101,7 @@ if AWS_STORAGE_BUCKET_NAME:
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-    
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # streaming_project/settings.py
 USE_X_FORWARDED_HOST = True
