@@ -2,13 +2,13 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv() # Carrega variáveis do arquivo .env
-env_path = Path(__file__).resolve().parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+# Carrega variáveis do arquivo .env
+env_path = BASE_DIR / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # Em produção, adicione o IP do seu servidor aqui
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
@@ -85,15 +85,13 @@ AWS_QUERYSTRING_AUTH = False
 # Adicione a região (Importante para IAM Role!)
 AWS_S3_REGION_NAME = 'us-east-1'  # Ou a região onde criou o bucket (ex: sa-east-1)
 
-# Lógica de Autenticação Híbrida (Chaves Manuais OU IAM Role)
-if os.getenv('AWS_ACCESS_KEY_ID'):
-    # Se houver chaves no .env, usa elas (bom para desenvolvimento local)
-    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-else:
-    # Se NÃO houver chaves, limpa as variáveis para forçar o Boto3 a buscar a IAM Role
-    AWS_ACCESS_KEY_ID = None
-    AWS_SECRET_ACCESS_KEY = None
+
+# Se NÃO houver chaves, limpa as variáveis para forçar o Boto3 a buscar a IAM Role
+AWS_ACCESS_KEY_ID = None
+AWS_SECRET_ACCESS_KEY = None
+
+# Força o uso do S3Storage (sem fallback para local)
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Definição do Storage
 if AWS_STORAGE_BUCKET_NAME:
