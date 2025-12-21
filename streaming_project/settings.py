@@ -75,30 +75,29 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 
-# Configuração AWS S3
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+# streaming_project/settings.py
+
+# --- CONFIGURAÇÃO AWS S3 (Modo IAM Role) ---
+
+# 1. Configurações Básicas do Bucket
+AWS_STORAGE_BUCKET_NAME = 'streaming-forro-pe-descalco'  # Hardcoded para garantir
+AWS_S3_REGION_NAME = 'us-east-1'  # Obrigatório para IAM Role funcionar bem
 AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN')
+
+# 2. Configurações de Arquivo
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https:'
 AWS_QUERYSTRING_AUTH = False
+AWS_DEFAULT_ACL = None  # Importante: Desativa ACLs antigas que o S3 bloqueia
 
-# Adicione a região (Importante para IAM Role!)
-AWS_S3_REGION_NAME = 'us-east-1'  # Ou a região onde criou o bucket (ex: sa-east-1)
-
-
-# Se NÃO houver chaves, limpa as variáveis para forçar o Boto3 a buscar a IAM Role
+# 3. Limpeza de Credenciais (O Pulo do Gato)
+# Definimos explicitamente como None para o boto3 ignorar e buscar a Role da EC2
 AWS_ACCESS_KEY_ID = None
 AWS_SECRET_ACCESS_KEY = None
 
-# Força o uso do S3Storage (sem fallback para local)
+# 4. Forçar Storage S3
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-# Definição do Storage
-if AWS_STORAGE_BUCKET_NAME:
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-else:
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # streaming_project/settings.py
