@@ -77,25 +77,29 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 
 # streaming_project/settings.py
 
-# --- CONFIGURAÇÃO AWS S3 (Modo IAM Role) ---
 
-# 1. Configurações Básicas do Bucket
-AWS_STORAGE_BUCKET_NAME = 'streaming-forro-pe-descalco'  # Hardcoded para garantir
-AWS_S3_REGION_NAME = 'us-east-1'  # Obrigatório para IAM Role funcionar bem
-AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN')
+AWS_STORAGE_BUCKET_NAME = 'streaming-forro-pe-descalco'  # Hardcoded conforme seu teste
+AWS_S3_REGION_NAME = 'us-east-1'                         # Hardcoded conforme seu teste
+AWS_S3_CUSTOM_DOMAIN = 'd1qx0sqd14bw8g.cloudfront.net'   # Seu CloudFront
 
-# 2. Configurações de Arquivo
+# Configurações de arquivo
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https:'
 AWS_QUERYSTRING_AUTH = False
-AWS_DEFAULT_ACL = None  # Importante: Desativa ACLs antigas que o S3 bloqueia
+AWS_DEFAULT_ACL = None
 
-# 3. Limpeza de Credenciais (O Pulo do Gato)
-# Definimos explicitamente como None para o boto3 ignorar e buscar a Role da EC2
-AWS_ACCESS_KEY_ID = None
-AWS_SECRET_ACCESS_KEY = None
+# Lógica Crítica para IAM Role:
+# Se não houver chaves no .env, DELETAMOS as variáveis.
+# Isso obriga o boto3 a buscar a Role da EC2.
+if os.getenv('AWS_ACCESS_KEY_ID'):
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+else:
+    # Truque: Se definir como None, algumas versões travam.
+    # O ideal é não definir a variável.
+    pass 
 
-# 4. Forçar Storage S3
+# Forçar Storage
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 
