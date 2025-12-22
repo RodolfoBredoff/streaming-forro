@@ -1,51 +1,56 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
-<div class="p-5 mb-4 bg-dark rounded-3" style="background-image: url('https://via.placeholder.com/1920x600/333/999?text=Destaque+da+Semana'); background-size: cover; background-position: center; height: 60vh; display: flex; align-items: flex-end;">
-    <div class="container-fluid py-5" style="background: linear-gradient(to top, #141414, transparent);">
-        <h1 class="display-5 fw-bold text-white">Aprenda Forró Hoje</h1>
-        <p class="col-md-8 fs-4 text-white">Domine os passos básicos e avançados com nossa metodologia exclusiva.</p>
-        <button class="btn btn-danger btn-lg" type="button"><i class="bi bi-play-fill"></i> Assistir Agora</button>
-    </div>
-</div>
-
-<div class="container-fluid px-4 mb-5">
-    <h3 class="mb-3 text-white">Adicionados Recentemente</h3>
-
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-        {% for video in videos %}
-        <div class="col">
-            <a href="{% url 'video-detail' video.id %}" class="text-decoration-none">
-                <div class="card h-100 bg-dark text-white border-0 shadow-sm video-card">
-                    
-                    <div style="height: 160px; background-color: #222; overflow: hidden; position: relative;">
-                        {% if video.thumbnail %}
-                            <img src="{{ video.thumbnail.url }}" alt="{{ video.titulo }}" style="height: 100%; width: 100%; object-fit: cover; opacity: 0.9;">
-                        {% else %}
-                            <div style="height: 100%; display: flex; align-items: center; justify-content: center;">
-                                <i class="bi bi-play-circle" style="font-size: 3rem; opacity: 0.5; color: white;"></i>
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="card-body">
-                        <h5 class="card-title text-truncate" style="font-size: 1rem;">{{ video.titulo }}</h5>
-                        <p class="card-text small text-muted">Novo</p>
-                    </div>
-                </div>
-            </a>
+{% if user.is_authenticated %}
+    <div class="p-5 mb-4 bg-dark rounded-3" style="background-image: url('https://via.placeholder.com/1920x600/333/999?text=Destaque+da+Semana'); background-size: cover; background-position: center; height: 60vh; display: flex; align-items: flex-end;">
+        <div class="container-fluid py-5" style="background: linear-gradient(to top, #141414, transparent);">
+            <h1 class="display-5 fw-bold text-white">Aprenda Forró Hoje</h1>
+            <p class="col-md-8 fs-4 text-white">Domine os passos básicos e avançados com nossa metodologia exclusiva.</p>
         </div>
-        {% empty %}
-        <div class="col-12 text-center py-5">
-            <p class="text-white">Nenhum vídeo disponível no momento.</p>
-        </div>
-        {% endfor %}
     </div>
-</div>
+
+    <div class="container-fluid px-4 mb-5">
+        <h3 class="mb-3 text-white">Adicionados Recentemente</h3>
+
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            {% for video in videos %}
+            <div class="col">
+                <a href="{% url 'video-detail' video.id %}" class="text-decoration-none">
+                    <div class="card h-100 bg-dark text-white border-0 shadow-sm video-card">
+                        
+                        <div style="height: 160px; background-color: #222; overflow: hidden; position: relative;">
+                            {% if video.thumbnail %}
+                                <img src="{{ video.thumbnail.url }}" alt="{{ video.titulo }}" style="height: 100%; width: 100%; object-fit: cover; opacity: 0.9;">
+                            {% else %}
+                                <div style="height: 100%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-play-circle" style="font-size: 3rem; opacity: 0.5; color: white;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="card-body">
+                            <h5 class="card-title text-truncate" style="font-size: 1rem;">{{ video.titulo }}</h5>
+                            <p class="card-text small text-muted">Novo</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <p class="text-white">Nenhum vídeo disponível no momento.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% else %}
+    <div class="container text-center py-5" style="margin-top: 150px;">
+        <h2 class="text-white">Conteúdo Exclusivo</h2>
+        <p class="text-secondary">Você precisa estar logado para acessar nossas aulas de Forró.</p>
+        <a href="{% url 'admin:login' %}" class="btn btn-danger btn-lg">Fazer Login Agora</a>
+    </div>
+{% endif %}
 
 <style>
-    /* Efeito de Hover estilo Netflix */
     .video-card {
         transition: transform 0.3s ease, z-index 0.3s;
         cursor: pointer;

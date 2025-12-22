@@ -121,3 +121,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Proxy Headers (Necessário para Nginx)
 USE_X_FORWARDED_HOST = True
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# implementação de view somente no login
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/'

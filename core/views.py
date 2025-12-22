@@ -1,22 +1,23 @@
 from django.views.generic import ListView, DetailView, CreateView
 from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Video
 
 # Lista todos os vídeos (Home)
-class VideoListView(ListView):
+class VideoListView(LoginRequiredMixin, ListView):
     model = Video
     template_name = 'core/video_list.html'
     context_object_name = 'videos'
     ordering = ['-data_criacao']
 
 # Player do vídeo
-class VideoDetailView(DetailView):
+class VideoDetailView(LoginRequiredMixin, DetailView):
     model = Video
     template_name = 'core/video_detail.html'
     context_object_name = 'video'
 
-# Página de Upload
-class VideoCreateView(CreateView):
+# Página de Upload (Caso você ainda use a página customizada)
+class VideoCreateView(LoginRequiredMixin, CreateView):
     model = Video
     fields = ['titulo', 'arquivo']
     template_name = 'core/video_form.html'
