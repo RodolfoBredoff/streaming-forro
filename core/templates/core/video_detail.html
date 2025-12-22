@@ -1,11 +1,43 @@
-{% extends 'core/base.html' %}
+{% extends 'base.html' %}
+
 {% block content %}
-<a href="{% url 'video-list' %}" class="btn btn-outline-light mb-3">Voltar</a>
-<h2>{{ video.titulo }}</h2>
-<div class="ratio ratio-16x9">
-    <video controls controlsList="nodownload">
-        <source src="{{ video.arquivo.url }}" type="video/mp4">
-        Seu navegador não suporta vídeos.
-    </video>
+
+<div class="container-fluid p-0" style="padding-top: 70px !important;">
+    
+    <div class="row justify-content-center bg-black m-0">
+        <div class="col-12 col-lg-10 col-xl-8 p-0">
+            <div class="ratio ratio-16x9 shadow-lg">
+                <video controls autoplay poster="{{ video.thumbnail.url|default:'' }}" class="bg-black">
+                    <source src="{{ video.arquivo.url }}" type="video/mp4">
+                    Seu navegador não suporta a reprodução deste vídeo.
+                </video>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-5 mb-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="display-5 fw-bold text-white">{{ video.titulo }}</h1>
+                
+                <div class="d-flex align-items-center mb-4 text-secondary">
+                    <span class="badge bg-danger me-2">HD</span>
+                    <span class="me-3"><i class="bi bi-calendar3"></i> {{ video.data_criacao|date:"d/m/Y" }}</span>
+                </div>
+                
+                <p class="lead text-light opacity-75">
+                    Aproveite esta aula exclusiva do Forró Pé Descalço. 
+                    Pratique os movimentos e repita quantas vezes for necessário.
+                </p>
+                
+                <hr class="border-secondary my-4">
+                
+                <a href="{% url 'video-list' %}" class="btn btn-outline-light px-4">
+                    <i class="bi bi-arrow-left me-2"></i> Voltar para a lista
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
+
 {% endblock %}
