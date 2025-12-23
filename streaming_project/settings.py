@@ -84,7 +84,7 @@ AWS_S3_CUSTOM_DOMAIN = 'd1qx0sqd14bw8g.cloudfront.net'
 
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https:'
-AWS_QUERYSTRING_AUTH = False
+AWS_QUERYSTRING_AUTH = True
 AWS_DEFAULT_ACL = None
 
 # streaming_project/settings.py
