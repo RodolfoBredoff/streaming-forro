@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 # ---------------------------------------------------------
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '34.226.195.5', 'd1qx0sqd14bw8g.cloudfront.net').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -123,6 +123,10 @@ USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
+
+# Configurações de segurança para CSRF e Cabeçalhos de Proxy
+CSRF_TRUSTED_ORIGINS = ['d1qx0sqd14bw8g.cloudfront.net']
+
 # implementação de view somente no login
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/'
