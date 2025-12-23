@@ -128,6 +128,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net']
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = False
 
 # implementação de view somente no login, O Django agora buscará o nome da rota dentro de accounts/
 LOGIN_URL = 'login'
