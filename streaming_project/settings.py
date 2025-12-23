@@ -122,6 +122,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Proxy Headers (Necessário para Nginx)SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Configurações de segurança para CSRF e Cabeçalhos de Proxy
 CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net']
