@@ -80,8 +80,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 # --- CONFIGURAÇÃO AWS S3 (IAM ROLE) ---
 AWS_STORAGE_BUCKET_NAME = 'streaming-forro-pe-descalco'
 AWS_S3_REGION_NAME = 'us-east-1'
-AWS_S3_CUSTOM_DOMAIN = 'd1qx0sqd14bw8g.cloudfront.net'
-
+# AWS_S3_CUSTOM_DOMAIN = 'd1qx0sqd14bw8g.cloudfront.net'
+AWS_S3_SIGNATURE_VERSION = 's3v4' # OBRIGATÓRIO para evitar erro 400
+AWS_S3_ADDRESSING_STYLE = 'virtual'
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https:'
 AWS_QUERYSTRING_AUTH = True
