@@ -125,7 +125,7 @@ USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
 # Configurações de segurança para CSRF e Cabeçalhos de Proxy
-CSRF_TRUSTED_ORIGINS = ['d1qx0sqd14bw8g.cloudfront.net']
+CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net']
 
 # implementação de view somente no login
 LOGIN_URL = '/admin/login/'
