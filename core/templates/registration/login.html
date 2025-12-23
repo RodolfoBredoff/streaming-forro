@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+    <div class="card bg-dark text-white border-0 shadow-lg" style="width: 100%; max-width: 400px; background-color: rgba(0,0,0,0.75) !important;">
+        <div class="card-body p-5">
+            <h2 class="text-center mb-4 fw-bold">Entrar</h2>
+            
+            {% if form.errors %}
+                <div class="alert alert-danger small">
+                    Usuário ou senha incorretos.
+                </div>
+            {% endif %}
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Usuário</label>
+                    <input type="text" name="username" class="form-control bg-secondary text-white border-0 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-secondary small">Senha</label>
+                    <input type="password" name="password" class="form-control bg-secondary text-white border-0 py-2" required>
+                </div>
+                <button type="submit" class="btn btn-danger w-100 py-2 fw-bold">Entrar</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('https://assets.nflxext.com/ffe/siteui/vlv3/f841d4c7-10e1-40af-bca1-07e3f8eb1468/da6a908a-2115-430c-99d9-0c6d5951f280/BR-pt-20220502-popsignuptwoweeks-perspective_alpha_website_large.jpg') !important;
+        background-size: cover !important;
+        background-position: center !important;
+    }
+    .form-control:focus {
+        background-color: #454545 !important;
+        color: white;
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
