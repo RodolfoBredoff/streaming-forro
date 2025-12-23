@@ -13,8 +13,8 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 # ---------------------------------------------------------
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
-
+# ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['34.226.195.5', 'd1qx0sqd14bw8g.cloudfront.net', 'localhost', '127.0.0.1']
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -118,8 +118,7 @@ else:
 # Forçar Storage para S3
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Proxy Headers (Necessário para Nginx)
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Proxy Headers (Necessário para Nginx)SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
