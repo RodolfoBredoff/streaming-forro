@@ -131,6 +131,10 @@ SESSION_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = False
 CSRF_COOKIE_HTTPONLY = True
 
+# Permite que o upload aconteça via CloudFront sem erro de origem
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000
+
 # 4. ESSENCIAL: Ignorar a verificação de Host do cabeçalho Origin se necessário
 SECURE_REFERER_POLICY = 'no-referrer-when-downgrade'
 
