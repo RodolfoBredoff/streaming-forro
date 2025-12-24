@@ -102,11 +102,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {
-            "querystring_auth": False,
-            "custom_domain": "d1qx0sqd14bw8g.cloudfront.net",
-            "location": "videos", # Isso ajuda o Django a saber o prefixo
-        },
     },
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
