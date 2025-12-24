@@ -73,20 +73,23 @@ TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
-# Arquivos Estáticos (CSS, JS do Admin)
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
-
 # --- CONFIGURAÇÃO AWS S3 (IAM ROLE) ---
 AWS_STORAGE_BUCKET_NAME = 'streaming-forro-pe-descalco'
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_CUSTOM_DOMAIN = 'd1qx0sqd14bw8g.cloudfront.net'
-AWS_S3_SIGNATURE_VERSION = 's3v4' # OBRIGATÓRIO para evitar erro 400
+AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_ADDRESSING_STYLE = 'virtual'
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https'
-AWS_QUERYSTRING_AUTH = True
+AWS_QUERYSTRING_AUTH = False  # Alterado para False para funcionar com CloudFront OAC
 AWS_DEFAULT_ACL = None
+
+# Arquivos Estáticos (CSS, JS do Admin)
+STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 
 # streaming_project/settings.py
 
