@@ -13,8 +13,8 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 # ---------------------------------------------------------
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
-# ALLOWED_HOSTS = ['34.226.195.5', 'd1qx0sqd14bw8g.cloudfront.net', 'localhost', '127.0.0.1']
+# ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['34.226.195.5', 'd1qx0sqd14bw8g.cloudfront.net', 'localhost', '127.0.0.1','.compute-1.amazonaws.com',]
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
