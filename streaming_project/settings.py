@@ -129,6 +129,10 @@ CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net']
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = False
+CSRF_COOKIE_HTTPONLY = True
+
+# 4. ESSENCIAL: Ignorar a verificação de Host do cabeçalho Origin se necessário
+SECURE_REFERER_POLICY = 'no-referrer-when-downgrade'
 
 # implementação de view somente no login, O Django agora buscará o nome da rota dentro de accounts/
 LOGIN_URL = 'login'
