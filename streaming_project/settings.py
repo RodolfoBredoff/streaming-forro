@@ -89,7 +89,7 @@ AWS_S3_FILE_OVERWRITE = False
 # Arquivos Estáticos (CSS, JS do Admin)
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/videos/'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
