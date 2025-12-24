@@ -136,6 +136,7 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = False
 CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_DOMAIN = 'd1qx0sqd14bw8g.cloudfront.net'
 
 # Permite que o upload aconteça via CloudFront sem erro de origem
 DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB
