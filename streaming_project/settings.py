@@ -83,11 +83,13 @@ AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https'
 AWS_QUERYSTRING_AUTH = False  # Alterado para False para funcionar com CloudFront OAC
 AWS_DEFAULT_ACL = None
+AWS_S3_MAX_MEMORY_SIZE = 0 # Força o streaming do upload para o S3 em vez de carregar na RAM da EC2
+AWS_S3_FILE_OVERWRITE = False
 
 # Arquivos Estáticos (CSS, JS do Admin)
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/videos/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
