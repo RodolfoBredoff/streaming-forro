@@ -1,0 +1,26 @@
+<div class="container mt-5">
+    <h1>{{ course.title }}</h1>
+    <hr>
+    
+    {% for module in course.modules.all %}
+        <div class="card mb-3">
+            <div class="card-header bg-dark text-white">
+                Módulo: {{ module.title }}
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for lesson in module.lessons.all %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ lesson.title }}
+                        {% if lesson.video %}
+                            <a href="#" class="btn btn-sm btn-outline-success">Assistir Aula</a>
+                        {% else %}
+                            <span class="badge bg-secondary">Sem vídeo</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% empty %}
+        <p>Este curso ainda não possui módulos cadastrados.</p>
+    {% endfor %}
+</div>
