@@ -1,20 +1,7 @@
 from django.contrib import admin
-from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
-from django.urls import path
-from .views import CourseListView
-
+from django.urls import path, include # Importante ter o 'include' aqui
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # Esta linha abaixo ativa o Login, Logout e Password Reset
-    path('accounts/', include('django.contrib.auth.urls')),
-    path('', include('core.urls')), # Conecta o app de vídeos
-] 
-# + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-
-urlpatterns = [
-    path('', CourseListView.as_view(), name='course_list'),
+    path('', include('core.urls')), # Isso diz: "use as URLs que estão dentro do app core"
 ]

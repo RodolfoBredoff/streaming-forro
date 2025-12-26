@@ -1,7 +1,6 @@
-from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
+from .views import CourseListView # Aqui a importação funciona pois a view está na mesma pasta
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include('core.urls')),
+    path('', CourseListView.as_view(), name='course_list'),
 ]
