@@ -30,6 +30,9 @@ class CourseListView(ListView):
     template_name = 'core/course_list.html' # O arquivo HTML que vamos criar
     context_object_name = 'courses' # Como chamaremos a lista dentro do HTML
 
+    # Se o usuário não estiver logado, ele será mandado para cá:
+    login_url = '/accounts/login/'
+
     def get_queryset(self):
         # Retorna apenas os cursos marcados como "Publicado"
         return Course.objects.filter(is_published=True).order_犠by('-created_at')

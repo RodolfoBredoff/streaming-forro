@@ -1,6 +1,8 @@
-from django.urls import path
-from .views import CourseListView
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-    path('', CourseListView.as_view(), name='course_list'),
+    path('admin/', admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')), # Adiciona login, logout, etc.
+    path('', include('core.urls')),
 ]
