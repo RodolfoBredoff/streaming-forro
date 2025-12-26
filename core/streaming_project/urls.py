@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CourseListView # Aqui a importação funciona pois a view está na mesma pasta
+from .views import CourseListView
 
 urlpatterns = [
     path('', CourseListView.as_view(), name='course_list'),
