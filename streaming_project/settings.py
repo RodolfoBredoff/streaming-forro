@@ -139,11 +139,11 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Configurações de segurança para CSRF e Cabeçalhos de Proxy
 CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net','http://d1qx0sqd14bw8g.cloudfront.net','http://34.226.195.5']
 CSRF_SERVER_NAME = 'd1qx0sqd14bw8g.cloudfront.net'
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
 SECURE_SSL_REDIRECT = False
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'None'  # Permite que o cookie de sessão atravesse o CloudFront
+CSRF_COOKIE_SAMESITE = 'Lax'  # Permite que o cookie de sessão atravesse o CloudFront
 # CSRF_COOKIE_DOMAIN = 'd1qx0sqd14bw8g.cloudfront.net'
 SESSION_COOKIE_DOMAIN = None
 
