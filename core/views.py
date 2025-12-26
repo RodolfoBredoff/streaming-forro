@@ -2,6 +2,8 @@ from django.views.generic import ListView, DetailView, CreateView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Video
+from django.views.generic import ListView
+from .models import Course
 
 # Lista todos os vídeos (Home)
 class VideoListView(LoginRequiredMixin, ListView):
@@ -22,3 +24,12 @@ class VideoCreateView(LoginRequiredMixin, CreateView):
     fields = ['titulo', 'arquivo']
     template_name = 'core/video_form.html'
     success_url = reverse_lazy('video-list')
+
+class CourseListView(ListView):
+    model = Course
+    template_name = 'core/course_list.html' # O arquivo HTML que vamos criar
+    context_object_name = 'courses' # Como chamaremos a lista dentro do HTML
+
+    def get_queryset(self):
+        # Retorna apenas os cursos marcados como "Publicado"
+        return Course.objects.filter(is_published=True).order_犠by('-created_at')
