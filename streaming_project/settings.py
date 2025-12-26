@@ -156,3 +156,5 @@ SECURE_REFERER_POLICY = 'no-referrer-when-downgrade'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = 'login'
+
+FORCE_SCRIPT_NAME = '/'
