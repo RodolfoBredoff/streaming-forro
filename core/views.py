@@ -1,38 +1,34 @@
 from django.views.generic import ListView, DetailView, CreateView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import Video
-from django.views.generic import ListView
-from .models import Course
+from .models import Video, Course, Module, Lesson # Importe todos aqui
 
-# Lista todos os vídeos (Home)
-class VideoListView(LoginRequiredMixin, ListView):
-    model = Video
-    template_name = 'core/video_list.html'
-    context_object_name = 'videos'
-    ordering = ['-data_criacao']
+# ESTA SERÁ A SUA NOVA HOME (Vitrine de Cursos)
+class CourseListView(LoginRequiredMixin, ListView):
+    model = Course
+    template_name = 'core/course_list.html'
+    context_object_name = 'courses'
+    login_url = '/accounts/login/'
 
-# Player do vídeo
+    def get_queryset(self):
+        # Corrigido o caractere estranho no order_by
+        return Course.objects.filter(is_published=True).order_by('-created_at')
+
+# Detalhes do Curso (Módulos e Aulas) - Vamos usar esta em breve
+class CourseDetailView(LoginRequiredMixin, DetailView):
+    model = Course
+    template_name = 'core/course_detail.html'
+    context_object_name = 'course'
+
+# Player do vídeo antigo (Mantenha se quiser usar o player individual)
 class VideoDetailView(LoginRequiredMixin, DetailView):
     model = Video
     template_name = 'core/video_detail.html'
     context_object_name = 'video'
 
-# Página de Upload (Caso você ainda use a página customizada)
+# Upload de Vídeo bruto
 class VideoCreateView(LoginRequiredMixin, CreateView):
     model = Video
     fields = ['titulo', 'arquivo']
     template_name = 'core/video_form.html'
-    success_url = reverse_lazy('video-list')
-
-class CourseListView(ListView):
-    model = Course
-    template_name = 'core/course_list.html' # O arquivo HTML que vamos criar
-    context_object_name = 'courses' # Como chamaremos a lista dentro do HTML
-
-    # Se o usuário não estiver logado, ele será mandado para cá:
-    login_url = '/accounts/login/'
-
-    def get_queryset(self):
-        # Retorna apenas os cursos marcados como "Publicado"
-        return Course.objects.filter(is_published=True).order_犠by('-created_at')
+    success_url = reverse_lazy('course_list')
