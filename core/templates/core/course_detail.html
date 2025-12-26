@@ -30,7 +30,7 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
     <div class="container">
-        <a class="navbar-brand text-danger fw-bold fs-3" href="{% url 'course_list' %}">NETFLIX_CLONE</a>
+        <a class="navbar-brand text-danger fw-bold fs-3" href="{% url 'course_list' %}">Forró Flix</a>
     </div>
 </nav>
 
@@ -42,6 +42,32 @@
 </header>
 
 <main class="container py-5">
+    <div class="row mb-4">
+    <div class="col-md-6">
+        <form method="GET" class="d-flex">
+            <input type="text" name="search_lesson" class="form-control bg-dark text-white border-secondary" 
+                   placeholder="Pesquisar aula pelo nome..." value="{{ request.GET.search_lesson }}">
+            <button type="submit" class="btn btn-netflix ms-2">
+                <i class="bi bi-search"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if is_searching %}
+    <h4 class="text-danger">Resultados da busca:</h4>
+    <div class="list-group mb-5">
+        {% for lesson in search_results %}
+            <a href="{% url 'video_detail' lesson.video.pk %}" class="list-group-item list-group-item-action text-white bg-dark border-secondary">
+                <i class="bi bi-play-circle-fill text-danger me-2"></i> {{ lesson.title }}
+            </a>
+        {% empty %}
+            <p class="text-muted">Nenhuma aula encontrada com esse nome.</p>
+        {% endfor %}
+        <a href="?" class="text-info mt-2 d-inline-block">Limpar busca</a>
+    </div>
+    <hr class="border-secondary">
+{% endif %}
     <h3 class="mb-4">Módulos e Aulas</h3>
     
     <div class="accordion" id="accordionModules">
