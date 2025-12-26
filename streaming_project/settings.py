@@ -86,6 +86,7 @@ AWS_S3_ADDRESSING_STYLE = 'virtual'
 AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
 AWS_S3_URL_PROTOCOL = 'https'
 AWS_QUERYSTRING_AUTH = False  # Alterado para False para funcionar com CloudFront OAC
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 AWS_DEFAULT_ACL = None
 AWS_S3_MAX_MEMORY_SIZE = 0 # Força o streaming do upload para o S3 em vez de carregar na RAM da EC2
 AWS_S3_FILE_OVERWRITE = False
