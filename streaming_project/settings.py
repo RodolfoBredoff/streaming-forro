@@ -45,7 +45,7 @@ ROOT_URLCONF = 'streaming_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [BASE_DIR / 'templates'], # Força a busca na pasta raiz onde está seu base.html
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -139,8 +139,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Configurações de segurança para CSRF e Cabeçalhos de Proxy
 CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net','http://d1qx0sqd14bw8g.cloudfront.net','http://34.226.195.5']
 CSRF_SERVER_NAME = 'd1qx0sqd14bw8g.cloudfront.net'
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = False
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'None'  # Permite que o cookie de sessão atravesse o CloudFront
