@@ -29,7 +29,7 @@
                     <p class="card-text text-muted">{{ course.description|truncatewords:15 }}</p>
                 </div>
                 <div class="card-footer bg-white border-top-0">
-                    <a href="{% url 'course_detail' course.slug %}" class="btn btn-primary w-100">Acessar Curso</a>
+                    <a href="{% url 'course_detail' course.pk %}" class="btn btn-primary w-100">Acessar Curso</a>
                 </div>
             </div>
         </div>
