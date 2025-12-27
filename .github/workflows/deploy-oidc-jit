@@ -1,0 +1,73 @@
+name: Deploy (OIDC + JIT)
+
+on:
+  push:
+    branches: [ main ]
+
+# Permissões necessárias para autenticação OIDC com a AWS
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Get GitHub Runner IP
+      id: ip
+      run: echo "ipv4=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Open SSH Port (Port 22)
+      run: |
+        aws ec2 authorize-security-group-ingress \
+          --group-id ${{ secrets.AWS_SG_ID }} \
+          --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          set -e
+          cd /home/ubuntu/app
+          
+          echo "🚀 Iniciando Deploy..."
+          
+          # Garante que o ambiente local do servidor esteja limpo e atualizado
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # Atualiza dependências e banco de dados
+          source venv/bin/activate
+          pip install -r requirements.txt
+          python manage.py migrate --noinput
+          python manage.py collectstatic --noinput
+          
+          # Reinicia o serviço
+          sudo systemctl restart gunicorn
+          
+          # Verifica se o Gunicorn subiu com sucesso
+          if sudo systemctl is-active --quiet gunicorn; then
+            echo "✅ Deploy finalizado com sucesso e Gunicorn ativo!"
+          else
+            echo "❌ Erro: Gunicorn falhou ao iniciar!"
+            exit 1
+          fi
+
+    - name: Close SSH Port (Always)
+      if: always()
+      run: |
+        aws ec2 revoke-security-group-ingress \
+          --group-id ${{ secrets.AWS_SG_ID }} \
+          --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
