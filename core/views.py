@@ -6,6 +6,7 @@ import boto3
 from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.views.generic import TemplateView
 
 #(Vitrine de Cursos)
 class CourseListView(LoginRequiredMixin, ListView):
@@ -59,11 +60,8 @@ class VideoDetailView(LoginRequiredMixin, DetailView):
         return context
 
 # Upload de Vídeo bruto
-class VideoCreateView(LoginRequiredMixin, CreateView):
-    model = Video
-    fields = ['titulo', 'arquivo']
+class VideoCreateView(LoginRequiredMixin, TemplateView):
     template_name = 'core/video_form.html'
-    success_url = reverse_lazy('course_list')
 
 @login_required
 def get_presigned_url(request):

@@ -1,15 +1,15 @@
 from django.urls import path
-from .views import CourseListView, CourseDetailView
-from .views import CourseListView, CourseDetailView, VideoDetailView
-from . import views
+from . import views # Isso já importa CourseListView, VideoCreateView, etc.
 
 urlpatterns = [
-    path('', CourseListView.as_view(), name='course_list'),
-    path('curso/<int:pk>/', CourseDetailView.as_view(), name='course_detail'),
-    path('aula/<int:pk>/', VideoDetailView.as_view(), name='video_detail'),
-    # Rota que renderiza o formulário de upload
+    path('', views.CourseListView.as_view(), name='course_list'),
+    path('curso/<int:pk>/', views.CourseDetailView.as_view(), name='course_detail'),
+    path('aula/<int:pk>/', views.VideoDetailView.as_view(), name='video_detail'),
+    
+    # Rota de upload
     path('upload/', views.VideoCreateView.as_view(), name='video_upload'),
-    # Rotas da API para o Direct Upload ao S3
+    
+    # APIs
     path('api/get-presigned-url/', views.get_presigned_url, name='get_presigned_url'),
     path('api/confirm-upload/', views.confirm_upload, name='confirm_upload'),
-] 
+]
