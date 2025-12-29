@@ -1,9 +1,111 @@
 {% extends 'core/base.html' %}
+
 {% block content %}
-<h2>Upload de Vídeo</h2>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-success">Salvar</button>
-</form>
+<div class="container mt-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3>Upload de Vídeo (Direct to S3)</h3>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="titulo-id" class="form-label">Título do Vídeo</label>
+                <input type="text" id="titulo-id" class="form-control" placeholder="Ex: Aula 01 - Introdução">
+            </div>
+
+            <div class="mb-3">
+                <label for="video-file" class="form-label">Selecione o arquivo MP4</label>
+                <input type="file" id="video-file" class="form-control" accept="video/mp4,video/x-m4v,video/*">
+            </div>
+
+            <button type="button" id="upload-btn" onclick="startDirectUpload()" class="btn btn-success">
+                Fazer Upload
+            </button>
+
+            <div id="progress-container" class="mt-4" style="display:none;">
+                <div class="progress" style="height: 25px;">
+                    <div id="upload-progress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%;">0%</div>
+                </div>
+                <p id="status-text" class="text-center mt-2 fw-bold text-primary">Iniciando...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function startDirectUpload() {
+    const fileInput = document.getElementById('video-file');
+    const tituloInput = document.getElementById('titulo-id');
+    const file = fileInput.files[0];
+    const btn = document.getElementById('upload-btn');
+
+    if (!file || !tituloInput.value) {
+        return alert("Por favor, preencha o título e selecione um arquivo!");
+    }
+
+    // Bloquear botão e mostrar progresso
+    btn.disabled = true;
+    document.getElementById('progress-container').style.display = 'block';
+    const progressBar = document.getElementById('upload-progress');
+    const statusText = document.getElementById('status-text');
+
+    try {
+        // PASSO 1: Solicitar URL Assinada ao Django
+        statusText.innerText = "🔑 Autorizando com AWS...";
+        const response = await fetch(`/api/get-presigned-url/?file_name=${encodeURIComponent(file.name)}&file_type=${file.type}`);
+        const data = await response.json();
+
+        // PASSO 2: Montar o FormData para o S3
+        const formData = new FormData();
+        Object.entries(data.fields).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
+        formData.append("file", file);
+
+        // PASSO 3: Upload via XMLHttpRequest (para monitorar progresso)
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", data.url, true);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percent + '%';
+                progressBar.innerText = percent + '%';
+                statusText.innerText = `📤 Enviando arquivo: ${percent}%`;
+            }
+        };
+
+        xhr.onload = async () => {
+            if (xhr.status === 204 || xhr.status === 200) {
+                statusText.innerText = "✅ S3 recebeu! Finalizando registro no banco...";
+                
+                // PASSO 4: Avisar o Django para salvar o modelo Video
+                const confirmResp = await fetch('/api/confirm-upload/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: `file_name=${encodeURIComponent(file.name)}&titulo=${encodeURIComponent(tituloInput.value)}`
+                });
+
+                if (confirmResp.ok) {
+                    statusText.innerText = "🚀 Tudo pronto! Redirecionando...";
+                    setTimeout(() => { window.location.href = "{% url 'course_list' %}"; }, 1500);
+                }
+            } else {
+                alert("Erro ao enviar para o S3. Verifique o CORS.");
+                btn.disabled = false;
+            }
+        };
+
+        xhr.send(formData);
+
+    } catch (error) {
+        console.error(error);
+        alert("Erro na conexão.");
+        btn.disabled = false;
+    }
+}
+</script>
 {% endblock %}
