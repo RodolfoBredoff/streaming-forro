@@ -95,18 +95,22 @@ def get_presigned_url(request):
 def confirm_upload(request):
     if request.method == 'POST':
         file_name = request.POST.get('file_name')
-        titulo = request.POST.get('titulo') # Pegamos o título do vídeo do JS
-        
-        # 1. Criamos o objeto Video no banco de dados
-        # O campo 'arquivo' no seu modelo Video provavelmente espera um caminho.
-        # Como o arquivo já está na pasta 'videos/' no S3, passamos esse caminho.
+        titulo = request.POST.get('titulo')
+        modulo_id = request.POST.get('modulo_id') # Enviado pelo JS
+
+        # Cria o vídeo
         novo_video = Video.objects.create(
             titulo=titulo,
             arquivo=f"videos/{file_name}" 
         )
+
+        # Se tiver um módulo, já cria a Aula vinculada
+        if modulo_id:
+            modulo = Module.objects.get(id=modulo_id)
+            Lesson.objects.create(
+                module=modulo,
+                title=titulo,
+                video=novo_video
+            )
         
-        return JsonResponse({
-            'status': 'success', 
-            'video_id': novo_video.id,
-            'message': 'Registro criado com sucesso!'
-        })
+        return JsonResponse({'status': 'success'})
