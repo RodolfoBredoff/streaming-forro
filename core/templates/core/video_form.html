@@ -28,6 +28,20 @@
                 </div>
                 <p id="status-text" class="text-center mt-2 fw-bold text-primary">Iniciando...</p>
             </div>
+            <hr class="my-5">
+            <h4>Últimos Uploads Realizados</h4>
+            <table class="table table-striped mt-3">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-uploads">
+                    <tr><td colspan="3" class="text-center text-muted">Nenhum upload nesta sessão.</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -91,6 +105,19 @@ async function startDirectUpload() {
 
                 if (confirmResp.ok) {
                     statusText.innerText = "🚀 Tudo pronto! Upload concluído com sucesso!";
+                    // Adiciona o vídeo na tabela de histórico da sessão
+                    const tbody = document.getElementById('recent-uploads');
+                    const now = new Date().toLocaleTimeString();
+                    
+                    // Remove a mensagem de "Nenhum upload" se for o primeiro
+                    if (tbody.innerHTML.includes("Nenhum upload")) tbody.innerHTML = "";
+
+                    const newRow = `<tr>
+                        <td>${tituloInput.value}</td>
+                        <td>${now}</td>
+                        <td><span class="badge bg-success">Salvo no Banco</span></td>
+                    </tr>`;
+                    tbody.innerHTML = newRow + tbody.innerHTML; // Adiciona no topo da lista
                     setTimeout(() => {
                         // 1. Limpa os inputs
                         document.getElementById('video-file').value = "";
