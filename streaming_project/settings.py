@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import os
+import boto3
+from botocore.exceptions import ClientError
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -154,11 +158,26 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000
 # 4. ESSENCIAL: Ignorar a verificação de Host do cabeçalho Origin se necessário
 SECURE_REFERER_POLICY = 'no-referrer-when-downgrade'
 
+def get_ssm_parameter(name, region="us-east-1"):
+    """Busca parâmetros criptografados no AWS SSM"""
+    # Se estiver rodando localmente e não tiver AWS configurada, 
+    # você pode retornar um valor padrão ou ignorar
+    if os.getenv('LOCAL_DEVELOPMENT') == 'True':
+        return os.getenv('CLOUDFRONT_PRIVATE_KEY')
 
+    ssm = boto3.client('ssm', region_name=region)
+    try:
+        response = ssm.get_parameter(Name=name, WithDecryption=True)
+        return response['Parameter']['Value']
+    except ClientError as e:
+        print(f"Erro ao buscar parâmetro SSM {name}: {e}")
+        return None
+    
 CLOUDFRONT_PUBLIC_KEY_ID = os.getenv('CLOUDFRONT_PUBLIC_KEY_ID')
 CLOUDFRONT_DOMAIN = os.getenv('CLOUDFRONT_DOMAIN')
 # O .replace garante que as quebras de linha sejam interpretadas corretamente
-CLOUDFRONT_PRIVATE_KEY = os.getenv('CLOUDFRONT_PRIVATE_KEY', '').replace('\\n', '\n')
+#CLOUDFRONT_PRIVATE_KEY = os.getenv('CLOUDFRONT_PRIVATE_KEY', '').replace('\\n', '\n')
+CLOUDFRONT_PRIVATE_KEY = get_ssm_parameter('/signed-url-streaming')
 
 # implementação de view somente no login, O Django agora buscará o nome da rota dentro de accounts/
 LOGIN_URL = 'login'
