@@ -65,31 +65,35 @@ class VideoCreateView(LoginRequiredMixin, TemplateView):
 
 @login_required
 def get_presigned_url(request):
-    # Pegamos o nome e o tipo do arquivo enviados pelo JS
     file_name = request.GET.get('file_name')
     file_type = request.GET.get('file_type')
-    
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_S3_REGION_NAME
-    )
 
-    # Geramos os campos necessários para o upload via POST direto
-    # Key: caminho onde o arquivo será salvo no S3
-    presigned_post = s3_client.generate_presigned_post(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=f"videos/{file_name}",
-        Fields={"Content-Type": file_type},
-        Conditions=[
-            {"Content-Type": file_type},
-            ["content-length-range", 0, 524288000] # Limite de 500MB
-        ],
-        ExpiresIn=3600 # URL expira em 1 hora
-    )
+    if not file_name or not file_type:
+        return JsonResponse({'error': 'Nome ou tipo de arquivo ausente'}, status=400)
 
-    return JsonResponse(presigned_post)
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME
+        )
+
+        presigned_post = s3_client.generate_presigned_post(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=f"videos/{file_name}",
+            Fields={"Content-Type": file_type},
+            Conditions=[
+                {"Content-Type": file_type},
+                ["content-length-range", 0, 524288000]
+            ],
+            ExpiresIn=3600
+        )
+        return JsonResponse(presigned_post)
+    except Exception as e:
+        # Isso vai imprimir o erro real no log do Gunicorn para você ler
+        print(f"ERRO S3: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def confirm_upload(request):
