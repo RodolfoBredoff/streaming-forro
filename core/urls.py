@@ -12,4 +12,5 @@ urlpatterns = [
     # APIs
     path('api/get-presigned-url/', views.get_presigned_url, name='get_presigned_url'),
     path('api/confirm-upload/', views.confirm_upload, name='confirm_upload'),
+    path('api/get-modules/<int:course_id>/', views.get_modules, name='get_modules'),
 ]

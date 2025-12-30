@@ -4,20 +4,38 @@
 <div class="container mt-5">
     <div class="card shadow">
         <div class="card-header bg-primary text-white">
-            <h3>Upload de Vídeo (Direct to S3)</h3>
+            <h3 class="mb-0">Upload de Vídeo (Direct to S3)</h3>
         </div>
         <div class="card-body">
             <div class="mb-3">
-                <label for="titulo-id" class="form-label">Título do Vídeo</label>
+                <label for="titulo-id" class="form-label fw-bold">Título do Vídeo</label>
                 <input type="text" id="titulo-id" class="form-control" placeholder="Ex: Aula 01 - Introdução">
             </div>
 
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Curso</label>
+                    <select id="curso-id" class="form-select" onchange="carregarModulos(this.value)">
+                        <option value="">Selecione um curso...</option>
+                        {% for course in courses %}
+                            <option value="{{ course.id }}">{{ course.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Módulo</label>
+                    <select id="modulo-id" class="form-select" disabled>
+                        <option value="">Selecione o curso primeiro...</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="mb-3">
-                <label for="video-file" class="form-label">Selecione o arquivo MP4</label>
+                <label for="video-file" class="form-label fw-bold">Selecione o arquivo MP4</label>
                 <input type="file" id="video-file" class="form-control" accept="video/mp4,video/x-m4v,video/*">
             </div>
 
-            <button type="button" id="upload-btn" onclick="startDirectUpload()" class="btn btn-success">
+            <button type="button" id="upload-btn" onclick="startDirectUpload()" class="btn btn-success w-100 fw-bold">
                 Fazer Upload
             </button>
 
@@ -28,7 +46,9 @@
                 </div>
                 <p id="status-text" class="text-center mt-2 fw-bold text-primary">Iniciando...</p>
             </div>
+
             <hr class="my-5">
+
             <h4>Últimos Uploads Realizados</h4>
             <table class="table table-striped mt-3">
                 <thead>
@@ -47,36 +67,58 @@
 </div>
 
 <script>
+// 1. Carregar módulos dinamicamente
+async function carregarModulos(courseId) {
+    const moduloSelect = document.getElementById('modulo-id');
+    if (!courseId) {
+        moduloSelect.disabled = true;
+        moduloSelect.innerHTML = '<option value="">Selecione o curso primeiro...</option>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/get-modules/${courseId}/`);
+        const modulos = await response.json();
+
+        moduloSelect.innerHTML = '<option value="">Selecione o módulo...</option>';
+        modulos.forEach(m => {
+            moduloSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`;
+        });
+        moduloSelect.disabled = false;
+    } catch (error) {
+        console.error("Erro ao carregar módulos:", error);
+    }
+}
+
+// 2. Função principal de Upload
 async function startDirectUpload() {
     const fileInput = document.getElementById('video-file');
     const tituloInput = document.getElementById('titulo-id');
+    const moduloInput = document.getElementById('modulo-id'); 
     const file = fileInput.files[0];
     const btn = document.getElementById('upload-btn');
 
-    if (!file || !tituloInput.value) {
-        return alert("Por favor, preencha o título e selecione um arquivo!");
+    // Validação corrigida dentro da função
+    if (!file || !tituloInput.value || !moduloInput.value) {
+        return alert("Por favor, preencha Título, Curso, Módulo e selecione um arquivo!");
     }
 
-    // Bloquear botão e mostrar progresso
     btn.disabled = true;
     document.getElementById('progress-container').style.display = 'block';
     const progressBar = document.getElementById('upload-progress');
     const statusText = document.getElementById('status-text');
 
     try {
-        // PASSO 1: Solicitar URL Assinada ao Django
         statusText.innerText = "🔑 Autorizando com AWS...";
         const response = await fetch(`/api/get-presigned-url/?file_name=${encodeURIComponent(file.name)}&file_type=${file.type}`);
         const data = await response.json();
 
-        // PASSO 2: Montar o FormData para o S3
         const formData = new FormData();
         Object.entries(data.fields).forEach(([key, value]) => {
             formData.append(key, value);
         });
         formData.append("file", file);
 
-        // PASSO 3: Upload via XMLHttpRequest (para monitorar progresso)
         const xhr = new XMLHttpRequest();
         xhr.open("POST", data.url, true);
 
@@ -93,23 +135,20 @@ async function startDirectUpload() {
             if (xhr.status === 204 || xhr.status === 200) {
                 statusText.innerText = "✅ S3 recebeu! Finalizando registro no banco...";
                 
-                // PASSO 4: Avisar o Django para salvar o modelo Video
                 const confirmResp = await fetch('/api/confirm-upload/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-CSRFToken': '{{ csrf_token }}'
                     },
-                    body: `file_name=${encodeURIComponent(file.name)}&titulo=${encodeURIComponent(tituloInput.value)}`
+                    body: `file_name=${encodeURIComponent(file.name)}&titulo=${encodeURIComponent(tituloInput.value)}&modulo_id=${moduloInput.value}`
                 });
 
                 if (confirmResp.ok) {
                     statusText.innerText = "🚀 Tudo pronto! Upload concluído com sucesso!";
-                    // Adiciona o vídeo na tabela de histórico da sessão
+                    
                     const tbody = document.getElementById('recent-uploads');
                     const now = new Date().toLocaleTimeString();
-                    
-                    // Remove a mensagem de "Nenhum upload" se for o primeiro
                     if (tbody.innerHTML.includes("Nenhum upload")) tbody.innerHTML = "";
 
                     const newRow = `<tr>
@@ -117,29 +156,25 @@ async function startDirectUpload() {
                         <td>${now}</td>
                         <td><span class="badge bg-success">Salvo no Banco</span></td>
                     </tr>`;
-                    tbody.innerHTML = newRow + tbody.innerHTML; // Adiciona no topo da lista
+                    tbody.innerHTML = newRow + tbody.innerHTML;
+
                     setTimeout(() => {
-                        // 1. Limpa os inputs
-                        document.getElementById('video-file').value = "";
-                        document.getElementById('titulo-id').value = "";
-                        
-                        // 2. Reseta e esconde a barra de progresso
+                        fileInput.value = "";
+                        tituloInput.value = "";
+                        document.getElementById('curso-id').value = "";
+                        moduloInput.innerHTML = '<option value="">Selecione o curso primeiro...</option>';
+                        moduloInput.disabled = true;
                         document.getElementById('progress-container').style.display = 'none';
-                        document.getElementById('upload-progress').style.width = '0%';
-                        document.getElementById('upload-progress').innerText = '0%';
-                        
-                        // 3. Reativa o botão de upload
+                        progressBar.style.width = '0%';
                         btn.disabled = false;
-                        
-                        alert("Vídeo registrado! Você já pode subir o próximo.");
-                    }, 2000); // Aguarda 2 segundos para o usuário ler a mensagem de sucesso
+                        alert("Vídeo registrado com sucesso!");
+                    }, 2000);
                 }
             } else {
                 alert("Erro ao enviar para o S3. Verifique o CORS.");
                 btn.disabled = false;
             }
         };
-
         xhr.send(formData);
 
     } catch (error) {

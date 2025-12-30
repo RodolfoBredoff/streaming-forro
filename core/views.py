@@ -1,4 +1,4 @@
-from django.views.generic import ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Video, Course, Module, Lesson
@@ -6,7 +6,6 @@ import boto3
 from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.views.generic import TemplateView
 
 #(Vitrine de Cursos)
 class CourseListView(LoginRequiredMixin, ListView):
@@ -63,6 +62,11 @@ class VideoDetailView(LoginRequiredMixin, DetailView):
 class VideoCreateView(LoginRequiredMixin, TemplateView):
     template_name = 'core/video_form.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['courses'] = Course.objects.all().order_by('title') # Envia os cursos para o seletor
+        return context
+
 @login_required
 def get_presigned_url(request):
     file_name = request.GET.get('file_name')
@@ -116,3 +120,8 @@ def confirm_upload(request):
             )
         
         return JsonResponse({'status': 'success'})
+    
+@login_required
+def get_modules(request, course_id):
+    modulos = Module.objects.filter(course_id=course_id).values('id', 'title')
+    return JsonResponse(list(modulos), safe=False)
