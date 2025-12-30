@@ -154,6 +154,12 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000
 # 4. ESSENCIAL: Ignorar a verificação de Host do cabeçalho Origin se necessário
 SECURE_REFERER_POLICY = 'no-referrer-when-downgrade'
 
+
+CLOUDFRONT_PUBLIC_KEY_ID = os.getenv('CLOUDFRONT_PUBLIC_KEY_ID')
+CLOUDFRONT_DOMAIN = os.getenv('CLOUDFRONT_DOMAIN')
+# O .replace garante que as quebras de linha sejam interpretadas corretamente
+CLOUDFRONT_PRIVATE_KEY = os.getenv('CLOUDFRONT_PRIVATE_KEY', '').replace('\\n', '\n')
+
 # implementação de view somente no login, O Django agora buscará o nome da rota dentro de accounts/
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = '/'

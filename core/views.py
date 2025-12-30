@@ -6,6 +6,11 @@ import boto3
 from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+import datetime
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import serialization
+from botocore.signers import CloudFrontSigner
 
 #(Vitrine de Cursos)
 class CourseListView(LoginRequiredMixin, ListView):
@@ -37,7 +42,34 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
             context['is_searching'] = True
         return context
 
-# Player do vídeo antigo (Mantenha se quiser usar o player individual)
+def rsa_signer(message):
+    private_key = serialization.load_pem_private_key(
+        settings.CLOUDFRONT_PRIVATE_KEY.encode(),
+        password=None
+    )
+    return private_key.sign(
+        message,
+        padding.PKCS1v15(),
+        hashes.SHA1()
+    )
+
+# Função para gerar a URL assinada
+def generate_cloudfront_url(file_path):
+    if not file_path:
+        return None
+    
+    # Monta a URL base (ex: https://dominio.cloudfront.net/videos/aula.mp4)
+    url = f"https://{settings.CLOUDFRONT_DOMAIN}/{file_path}"
+    
+    # Define expiração para daqui a 2 horas
+    expire_date = datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+    
+    signer = CloudFrontSigner(settings.CLOUDFRONT_PUBLIC_KEY_ID, rsa_signer)
+    
+    # Gera a URL com os parâmetros de assinatura anexados
+    return signer.generate_presigned_url(url, date_less_than=expire_date)
+
+# Sua View de Detalhes do Vídeo Atualizada
 class VideoDetailView(LoginRequiredMixin, DetailView):
     model = Video
     template_name = 'core/video_detail.html'
@@ -47,12 +79,15 @@ class VideoDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         video_atual = self.object
         
-        # Tentamos encontrar a aula que contém este vídeo
-        aula = video_atual.lesson_set.first() 
+        # --- PROTEÇÃO AQUI ---
+        # Geramos a URL assinada para o arquivo do vídeo
+        # video_atual.arquivo é o campo FileField/CharField que guarda 'videos/nome.mp4'
+        context['url_assinada'] = generate_cloudfront_url(str(video_atual.arquivo))
         
+        # Lógica de navegação de aulas que você já tinha
+        aula = video_atual.lesson_set.first() 
         if aula:
             modulo = aula.module
-            # Busca a próxima aula e a anterior no mesmo módulo
             context['proxima_aula'] = modulo.lessons.filter(id__gt=aula.id).order_by('id').first()
             context['aula_anterior'] = modulo.lessons.filter(id__lt=aula.id).order_by('-id').first()
         
