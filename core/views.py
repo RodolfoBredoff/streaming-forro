@@ -57,9 +57,10 @@ def rsa_signer(message):
 def generate_cloudfront_url(file_path):
     if not file_path:
         return None
-    
+    path_quoted = urllib.parse.quote(file_path)
+
     # Monta a URL base (ex: https://dominio.cloudfront.net/videos/aula.mp4)
-    url = f"https://{settings.CLOUDFRONT_DOMAIN}/{file_path}"
+    url = f"https://{settings.CLOUDFRONT_DOMAIN}/{path_quoted}"
     
     # Define expiração para daqui a 2 horas
     expire_date = datetime.datetime.utcnow() + datetime.timedelta(hours=2)
