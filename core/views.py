@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 from botocore.signers import CloudFrontSigner
+import urllib.parse
 
 #(Vitrine de Cursos)
 class CourseListView(LoginRequiredMixin, ListView):
