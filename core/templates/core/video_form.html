@@ -90,8 +90,22 @@ async function startDirectUpload() {
                 });
 
                 if (confirmResp.ok) {
-                    statusText.innerText = "🚀 Tudo pronto! Redirecionando...";
-                    setTimeout(() => { window.location.href = "{% url 'course_list' %}"; }, 1500);
+                    statusText.innerText = "🚀 Tudo pronto! Upload concluído com sucesso!";
+                    setTimeout(() => {
+                        // 1. Limpa os inputs
+                        document.getElementById('video-file').value = "";
+                        document.getElementById('titulo-id').value = "";
+                        
+                        // 2. Reseta e esconde a barra de progresso
+                        document.getElementById('progress-container').style.display = 'none';
+                        document.getElementById('upload-progress').style.width = '0%';
+                        document.getElementById('upload-progress').innerText = '0%';
+                        
+                        // 3. Reativa o botão de upload
+                        btn.disabled = false;
+                        
+                        alert("Vídeo registrado! Você já pode subir o próximo.");
+                    }, 2000); // Aguarda 2 segundos para o usuário ler a mensagem de sucesso
                 }
             } else {
                 alert("Erro ao enviar para o S3. Verifique o CORS.");
