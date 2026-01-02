@@ -25,6 +25,26 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
+    
+    # --- NOVO STEP: Busca o IP Público atual da Instância ---
+    - name: Get EC2 Public IP
+      id: get_ec2_ip
+      run: |
+        # Busca o IP público usando o ID da instância
+        PUBLIC_IP=$(aws ec2 describe-instances \
+          --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+          --query "Reservations[0].Instances[0].PublicIpAddress" \
+          --output text)
+        
+        # Verifica se a instância está ligada e tem IP
+        if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
+          echo "❌ Erro: A instância parece estar desligada ou sem IP público."
+          exit 1
+        fi
+        
+        # Salva o IP na variável de ambiente do GitHub Actions
+        echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
+        echo "✅ IP Detectado: $PUBLIC_IP"
 
     - name: Open SSH Port (Port 22)
       run: |
