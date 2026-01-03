@@ -17,8 +17,8 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 # ---------------------------------------------------------
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
-#ALLOWED_HOSTS = ['34.226.195.5', 'd1qx0sqd14bw8g.cloudfront.net', 'localhost', '127.0.0.1','.compute-1.amazonaws.com',]
+#ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['.skillia.click', 'd1qx0sqd14bw8g.cloudfront.net', 'localhost', '127.0.0.1','.compute-1.amazonaws.com',]
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -141,7 +141,7 @@ USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Configurações de segurança para CSRF e Cabeçalhos de Proxy
-CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net','http://d1qx0sqd14bw8g.cloudfront.net','http://34.226.195.5']
+CSRF_TRUSTED_ORIGINS = ['https://d1qx0sqd14bw8g.cloudfront.net','http://d1qx0sqd14bw8g.cloudfront.net','http://www.skillia.click', 'http://origin.skillia.click']
 CSRF_SERVER_NAME = 'd1qx0sqd14bw8g.cloudfront.net'
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
