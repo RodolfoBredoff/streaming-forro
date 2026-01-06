@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
 
-# Permissões necessárias para autenticação OIDC com a AWS
 permissions:
   id-token: write
   contents: read
@@ -26,23 +25,20 @@ jobs:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
     
-    # --- NOVO STEP: Busca o IP Público atual da Instância ---
     - name: Get EC2 Public IP
       id: get_ec2_ip
       run: |
-        # Busca o IP público usando o ID da instância
         PUBLIC_IP=$(aws ec2 describe-instances \
           --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
           --query "Reservations[0].Instances[0].PublicIpAddress" \
           --output text)
         
-        # Verifica se a instância está ligada e tem IP
         if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
           echo "❌ Erro: A instância parece estar desligada ou sem IP público."
           exit 1
         fi
         
-        # Salva o IP na variável de ambiente do GitHub Actions
+        # Salva o IP na variável de ambiente (ENV)
         echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
         echo "✅ IP Detectado: $PUBLIC_IP"
 
@@ -55,35 +51,16 @@ jobs:
     - name: Deploy via SSH
       uses: appleboy/ssh-action@master
       with:
-        host: ${{ secrets.EC2_HOST }}
+        # Usando env.EC2_HOST em vez de secrets
+        host: ${{ env.EC2_HOST }} 
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          set -e
-          cd /home/ubuntu/app
+          # Garante que o script é executável (segurança extra)
+          chmod +x /home/ubuntu/deploy.sh
           
-          echo "🚀 Iniciando Deploy..."
-          
-          # Garante que o ambiente local do servidor esteja limpo e atualizado
-          git fetch origin main
-          git reset --hard origin/main
-          
-          # Atualiza dependências e banco de dados
-          source venv/bin/activate
-          pip install -r requirements.txt
-          python manage.py migrate --noinput
-          python manage.py collectstatic --noinput
-          
-          # Reinicia o serviço
-          sudo systemctl restart gunicorn
-          
-          # Verifica se o Gunicorn subiu com sucesso
-          if sudo systemctl is-active --quiet gunicorn; then
-            echo "✅ Deploy finalizado com sucesso e Gunicorn ativo!"
-          else
-            echo "❌ Erro: Gunicorn falhou ao iniciar!"
-            exit 1
-          fi
+          # Executa o script de automação que criamos
+          /home/ubuntu/deploy.sh
 
     - name: Close SSH Port (Always)
       if: always()
