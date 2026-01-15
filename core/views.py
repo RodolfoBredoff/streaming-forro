@@ -109,15 +109,19 @@ def get_presigned_url(request):
     file_name = request.GET.get('file_name')
     file_type = request.GET.get('file_type')
 
+    # --- DEBUG: Verifique isso no terminal do Gunicorn ---
+    print(f"DEBUG S3: Solicitado presign para '{file_name}' do tipo '{file_type}'")
+
     if not file_name or not file_type:
         return JsonResponse({'error': 'Nome ou tipo de arquivo ausente'}, status=400)
     
-    # --- CORREÇÃO 1: Lógica de Pastas ---
-    # Se for imagem, manda para thumbnails. Se não, assume que é video.
-    if file_type.startswith('image/'):
+    if 'image' in file_type_lower or file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
         folder = 'course_thumbnails'
+        print("DEBUG S3: Definido como IMAGEM (course_thumbnails)")
     else:
         folder = 'videos'
+        print("DEBUG S3: Definido como VIDEO (videos)")
+    
     
     # Caminho final do arquivo (Key)
     file_key = f"{folder}/{file_name}"
