@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import Video, Course, Module, Lesson
-
+from django.db import models
+from .widgets import S3ImageWidget # Importa nosso widget novo
 
 # Isso permite editar Aulas dentro da página do Módulo
 class LessonInline(admin.TabularInline):
@@ -24,6 +25,12 @@ class CourseAdmin(admin.ModelAdmin):
     search_fields = ('title',)
     prepopulated_fields = {'slug': ('title',)} # Preenche o slug automaticamente enquanto você digita o título
     inlines = [ModuleInline]
+
+    # AQUI ESTÁ A MÁGICA:
+    # Dizemos ao Django: "Sempre que ver um URLField neste admin, use meu Widget S3"
+    formfield_overrides = {
+        models.URLField: {'widget': S3ImageWidget},
+    }
 
 @admin.register(Module)
 class ModuleAdmin(admin.ModelAdmin):

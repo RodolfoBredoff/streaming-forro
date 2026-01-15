@@ -15,7 +15,10 @@ class Course(models.Model):
     title = models.CharField(max_length=200, verbose_name="Título do Curso")
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(verbose_name="Descrição")
-    thumbnail = models.ImageField(upload_to='course_thumbnails/', verbose_name="Capa do Curso")
+   # ALTERAÇÃO AQUI: De ImageField para URLField
+    # Isso permite que a gente salve o link direto do S3
+    thumbnail = models.URLField(max_length=500, verbose_name="Capa do Curso (URL)", blank=True, null=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     is_published = models.BooleanField(default=False, verbose_name="Publicado")
 

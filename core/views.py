@@ -111,6 +111,13 @@ def get_presigned_url(request):
 
     if not file_name or not file_type:
         return JsonResponse({'error': 'Nome ou tipo de arquivo ausente'}, status=400)
+    
+    # --- LÓGICA NOVA: Define a pasta baseada no tipo do arquivo ---
+    if file_type.startswith('image/'):
+        folder = 'course_thumbnails'
+    else:
+        folder = 'videos'
+    # -------------------------------------------------------------
 
     try:
         s3_client = boto3.client(
