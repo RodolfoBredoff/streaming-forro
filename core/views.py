@@ -112,12 +112,16 @@ def get_presigned_url(request):
     if not file_name or not file_type:
         return JsonResponse({'error': 'Nome ou tipo de arquivo ausente'}, status=400)
     
-    # --- LÓGICA NOVA: Define a pasta baseada no tipo do arquivo ---
+    # --- CORREÇÃO 1: Lógica de Pastas ---
+    # Se for imagem, manda para thumbnails. Se não, assume que é video.
     if file_type.startswith('image/'):
         folder = 'course_thumbnails'
     else:
         folder = 'videos'
-    # -------------------------------------------------------------
+    
+    # Caminho final do arquivo (Key)
+    file_key = f"{folder}/{file_name}"
+    # ------------------------------------
 
     try:
         s3_client = boto3.client(
@@ -135,7 +139,10 @@ def get_presigned_url(request):
             ],
             ExpiresIn=3600
         )
+        presigned_post['cloudfront_url'] = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{file_key}"
+        
         return JsonResponse(presigned_post)
+
     except Exception as e:
         # Isso vai imprimir o erro real no log do Gunicorn para você ler
         print(f"ERRO S3: {str(e)}")
