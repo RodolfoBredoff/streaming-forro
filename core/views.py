@@ -3,17 +3,57 @@ from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Video, Course, Module, Lesson
 import boto3
+import os
+import datetime
+import urllib.parse
 from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-import datetime
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 from botocore.signers import CloudFrontSigner
-import urllib.parse
 
-#(Vitrine de Cursos)
+# --- CLOUDFRONT SIGNER HELPER ---
+def rsa_signer(message):
+    try:
+        if not settings.CLOUDFRONT_PRIVATE_KEY:
+            print("AVISO: CLOUDFRONT_PRIVATE_KEY não configurada.")
+            return None
+            
+        private_key = serialization.load_pem_private_key(
+            settings.CLOUDFRONT_PRIVATE_KEY.encode(),
+            password=None
+        )
+        return private_key.sign(
+            message,
+            padding.PKCS1v15(),
+            hashes.SHA1()
+        )
+    except Exception as e:
+        print(f"Erro no RSA Signer: {e}")
+        return None
+
+def generate_cloudfront_url(file_path):
+    if not file_path:
+        return None
+    try:
+        path_quoted = urllib.parse.quote(str(file_path))
+        url = f"https://{settings.CLOUDFRONT_DOMAIN}/{path_quoted}"
+        expire_date = datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+        
+        if not settings.CLOUDFRONT_PUBLIC_KEY_ID:
+             # Se não tiver chave configurada, retorna URL simples (pode falhar se for privado)
+            return url
+
+        signer = CloudFrontSigner(settings.CLOUDFRONT_PUBLIC_KEY_ID, rsa_signer)
+        return signer.generate_presigned_url(url, date_less_than=expire_date)
+    except Exception as e:
+        print(f"Erro ao gerar URL CloudFront: {e}")
+        return f"https://{settings.CLOUDFRONT_DOMAIN}/{file_path}"
+
+# --- VIEWS ---
+
 class CourseListView(LoginRequiredMixin, ListView):
     model = Course
     template_name = 'core/course_list.html'
@@ -21,10 +61,8 @@ class CourseListView(LoginRequiredMixin, ListView):
     login_url = '/accounts/login/'
 
     def get_queryset(self):
-        # Corrigido o caractere estranho no order_by
         return Course.objects.filter(is_published=True).order_by('-created_at')
 
-# Detalhes do Curso (Módulos e Aulas)
 class CourseDetailView(LoginRequiredMixin, DetailView):
     model = Course
     template_name = 'core/course_detail.html'
@@ -33,9 +71,7 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         query = self.request.GET.get('search_lesson')
-        
         if query:
-            # Filtra aulas do curso que contenham o nome pesquisado
             context['search_results'] = Lesson.objects.filter(
                 module__course=self.object, 
                 title__icontains=query
@@ -43,35 +79,6 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
             context['is_searching'] = True
         return context
 
-def rsa_signer(message):
-    private_key = serialization.load_pem_private_key(
-        settings.CLOUDFRONT_PRIVATE_KEY.encode(),
-        password=None
-    )
-    return private_key.sign(
-        message,
-        padding.PKCS1v15(),
-        hashes.SHA1()
-    )
-
-# Função para gerar a URL assinada
-def generate_cloudfront_url(file_path):
-    if not file_path:
-        return None
-    path_quoted = urllib.parse.quote(file_path)
-
-    # Monta a URL base (ex: https://dominio.cloudfront.net/videos/aula.mp4)
-    url = f"https://{settings.CLOUDFRONT_DOMAIN}/{path_quoted}"
-    
-    # Define expiração para daqui a 2 horas
-    expire_date = datetime.datetime.utcnow() + datetime.timedelta(hours=2)
-    
-    signer = CloudFrontSigner(settings.CLOUDFRONT_PUBLIC_KEY_ID, rsa_signer)
-    
-    # Gera a URL com os parâmetros de assinatura anexados
-    return signer.generate_presigned_url(url, date_less_than=expire_date)
-
-# Sua View de Detalhes do Vídeo Atualizada
 class VideoDetailView(LoginRequiredMixin, DetailView):
     model = Video
     template_name = 'core/video_detail.html'
@@ -80,52 +87,52 @@ class VideoDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         video_atual = self.object
+        context['url_assinada'] = generate_cloudfront_url(video_atual.arquivo)
         
-        # --- PROTEÇÃO AQUI ---
-        # Geramos a URL assinada para o arquivo do vídeo
-        # video_atual.arquivo é o campo FileField/CharField que guarda 'videos/nome.mp4'
-        context['url_assinada'] = generate_cloudfront_url(str(video_atual.arquivo))
-        
-        # Lógica de navegação de aulas que você já tinha
         aula = video_atual.lesson_set.first() 
         if aula:
             modulo = aula.module
             context['proxima_aula'] = modulo.lessons.filter(id__gt=aula.id).order_by('id').first()
             context['aula_anterior'] = modulo.lessons.filter(id__lt=aula.id).order_by('-id').first()
-        
         return context
 
-# Upload de Vídeo bruto
 class VideoCreateView(LoginRequiredMixin, TemplateView):
     template_name = 'core/video_form.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['courses'] = Course.objects.all().order_by('title') # Envia os cursos para o seletor
+        context['courses'] = Course.objects.all().order_by('title')
         return context
+
+# --- API ENDPOINTS (AQUI ESTAVA O PROBLEMA) ---
 
 @login_required
 def get_presigned_url(request):
-    file_name = request.GET.get('file_name')
-    file_type = request.GET.get('file_type')
+    """
+    Gera URL assinada para upload direto no S3.
+    Diferencia automaticamente entre 'videos' e 'course_thumbnails'.
+    """
+    file_name = request.GET.get('file_name', '')
+    file_type = request.GET.get('file_type', '')
 
-    # --- DEBUG: Verifique isso no terminal do Gunicorn ---
-    print(f"DEBUG S3: Solicitado presign para '{file_name}' do tipo '{file_type}'")
+    print(f"DEBUG S3: Solicitacao de Upload - Arquivo: {file_name} | Tipo: {file_type}", flush=True)
 
-    if not file_name or not file_type:
-        return JsonResponse({'error': 'Nome ou tipo de arquivo ausente'}, status=400)
+    if not file_name:
+        return JsonResponse({'error': 'Nome do arquivo obrigatorio'}, status=400)
+
+    # 1. Determina a pasta correta
+    f_lower = file_name.lower()
+    t_lower = file_type.lower()
     
-    if 'image' in file_type_lower or file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+    # Se for imagem (por tipo ou extensão), vai para thumbnails
+    if 'image' in t_lower or f_lower.endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif')):
         folder = 'course_thumbnails'
-        print("DEBUG S3: Definido como IMAGEM (course_thumbnails)")
+        print(f"DEBUG S3: -> Detectado como IMAGEM. Pasta: {folder}", flush=True)
     else:
         folder = 'videos'
-        print("DEBUG S3: Definido como VIDEO (videos)")
-    
-    
-    # Caminho final do arquivo (Key)
+        print(f"DEBUG S3: -> Detectado como VIDEO. Pasta: {folder}", flush=True)
+
     file_key = f"{folder}/{file_name}"
-    # ------------------------------------
 
     try:
         s3_client = boto3.client(
@@ -135,47 +142,49 @@ def get_presigned_url(request):
 
         presigned_post = s3_client.generate_presigned_post(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-            Key=f"videos/{file_name}",
-            Fields={"Content-Type": file_type},
+            Key=file_key,
+            Fields={"Content-Type": file_type or 'application/octet-stream'},
             Conditions=[
-                {"Content-Type": file_type},
-                ["content-length-range", 0, 524288000]
+                # Removemos content-type estrito para evitar erros de validação do browser
+                ["content-length-range", 0, 524288000], # Até 500MB
             ],
             ExpiresIn=3600
         )
-        presigned_post['cloudfront_url'] = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{file_key}"
         
+        # IMPORTANTE: Retorna a URL pública do CloudFront para o Javascript usar no preview
+        presigned_post['cloudfront_url'] = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{file_key}"
+
         return JsonResponse(presigned_post)
 
     except Exception as e:
-        # Isso vai imprimir o erro real no log do Gunicorn para você ler
-        print(f"ERRO S3: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=500)
+        print(f"ERRO CRÍTICO NO S3: {str(e)}", flush=True)
+        return JsonResponse({'error': f"Erro no servidor: {str(e)}"}, status=500)
 
 @login_required
 def confirm_upload(request):
     if request.method == 'POST':
         file_name = request.POST.get('file_name')
         titulo = request.POST.get('titulo')
-        modulo_id = request.POST.get('modulo_id') # Enviado pelo JS
-
-        # Cria o vídeo
+        modulo_id = request.POST.get('modulo_id')
+        
+        # O arquivo já está no S3, apenas salvamos a referência
+        # Nota: Ajuste a pasta se necessário, aqui assume videos/
+        # Se for imagem, você não usa essa view, o widget salva direto.
         novo_video = Video.objects.create(
             titulo=titulo,
             arquivo=f"videos/{file_name}" 
         )
 
-        # Se tiver um módulo, já cria a Aula vinculada
         if modulo_id:
-            modulo = Module.objects.get(id=modulo_id)
-            Lesson.objects.create(
-                module=modulo,
-                title=titulo,
-                video=novo_video
-            )
+            try:
+                modulo = Module.objects.get(id=modulo_id)
+                Lesson.objects.create(module=modulo, title=titulo, video=novo_video)
+            except Module.DoesNotExist:
+                pass
         
         return JsonResponse({'status': 'success'})
-    
+    return JsonResponse({'error': 'Metodo nao permitido'}, status=405)
+
 @login_required
 def get_modules(request, course_id):
     modulos = Module.objects.filter(course_id=course_id).values('id', 'title')
