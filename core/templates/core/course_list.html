@@ -22,7 +22,11 @@
         <div class="col-md-4 mb-4">
             <div class="card h-100 shadow-sm">
                 {% if course.thumbnail %}
-                    <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}" style="height: 200px; object-fit: cover;">
+                    {% if "http" in course.thumbnail %}
+                        <img src="{{ course.thumbnail }}" class="card-img-top" alt="{{ course.title }}" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                        <img src="https://d1qx0sqd14bw8g.cloudfront.net/{{ course.thumbnail }}" class="card-img-top" alt="{{ course.title }}" style="height: 200px; object-fit: cover;">
+                    {% endif %}
                 {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">{{ course.title }}</h5>

@@ -1,6 +1,7 @@
 # Crie o arquivo core/widgets.py
 from django import forms
 from django.conf import settings
+from django.utils.safestring import mark_safe
 
 class S3ImageWidget(forms.TextInput):
     def render(self, name, value, attrs=None, renderer=None):
@@ -91,4 +92,4 @@ class S3ImageWidget(forms.TextInput):
         }}
         </script>
         """
-        return output + html
+        return mark_safe(output + html)
