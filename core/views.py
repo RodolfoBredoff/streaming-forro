@@ -17,7 +17,8 @@ from botocore.signers import CloudFrontSigner
 # --- CLOUDFRONT SIGNER HELPER ---
 def rsa_signer(message):
     try:
-        if not settings.CLOUDFRONT_PRIVATE_KEY:
+        key_content = settings.CLOUDFRONT_PRIVATE_KEY
+        if not key_content:
             return None
         private_key = serialization.load_pem_private_key(
             settings.CLOUDFRONT_PRIVATE_KEY.encode(),
@@ -131,21 +132,35 @@ def get_presigned_url(request):
 def confirm_upload(request):
     if request.method == 'POST':
         # Nota: Essa view é usada apenas pelo upload de Vídeos, não de imagens
+        raw_file_name = request.POST.get('file_name')
         file_name = request.POST.get('file_name') # Aqui o JS manda o nome original, cuidado
         titulo = request.POST.get('titulo')
         modulo_id = request.POST.get('modulo_id')
+
+        # Sanitizamos o nome IGUAL fizemos no get_presigned_url
+        # Assim o banco de dados fica idêntico ao S3
+        safe_name = get_valid_filename(raw_file_name)
         
         # Importante: O JS do vídeo também deve usar o nome sanitizado se possível, 
         # mas aqui vamos apenas salvar o caminho.
         # Se você usar o widget de imagem, ele já salva a URL completa direto no Admin.
         
-        path = f"videos/{file_name}" # Mantenha simples para vídeos por enquanto
-        novo_video = Video.objects.create(titulo=titulo, arquivo=path)
+        path = f"videos/{safe_name}" # Mantenha simples para vídeos por enquanto
+        novo_video = Video.objects.create(
+            titulo=titulo,
+            arquivo=path # Salva o caminho limpo (com underlines)
+        )
         
         if modulo_id:
             try:
-                Lesson.objects.create(module_id=modulo_id, title=titulo, video=novo_video)
-            except: pass
+                modulo = Module.objects.get(id=modulo_id)
+                Lesson.objects.create(
+                    module=modulo,
+                    title=titulo,
+                    video=novo_video
+                )
+            except Module.DoesNotExist:
+                pass
             
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'Metodo invalido'}, status=405)
