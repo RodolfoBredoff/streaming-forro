@@ -59,7 +59,21 @@ jobs:
     # O runner já tem acesso ao S3 via OIDC. O arquivo fica em deploy/ por
     # no máximo alguns segundos e é deletado ao final (step 9).
     - name: Package Code and Upload to S3
+      env:
+        S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
       run: |
+        # Validação dos secrets obrigatórios
+        if [ -z "$S3_BUCKET" ]; then
+          echo "❌ Secret AWS_STORAGE_BUCKET_NAME não configurado!"
+          echo "   GitHub → Settings → Secrets → Actions → New secret"
+          echo "   Nome: AWS_STORAGE_BUCKET_NAME | Valor: nome-do-seu-bucket"
+          exit 1
+        fi
+        if [ -z "${{ secrets.APP_DIR }}" ]; then
+          echo "❌ Secret APP_DIR não configurado!"
+          exit 1
+        fi
+
         echo "📦 Empacotando código..."
         tar czf /tmp/app_deploy.tar.gz \
           --exclude='./.git' \
@@ -72,9 +86,9 @@ jobs:
           --exclude='./staticfiles' \
           .
 
-        echo "☁️  Enviando para S3..."
+        echo "☁️  Enviando para S3 (bucket: $S3_BUCKET)..."
         aws s3 cp /tmp/app_deploy.tar.gz \
-          s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/deploy/app_deploy.tar.gz \
+          "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" \
           --no-progress
 
         echo "✅ Pacote disponível no S3 ($(du -sh /tmp/app_deploy.tar.gz | cut -f1))"
@@ -168,9 +182,13 @@ jobs:
     # ── 9. LIMPAR ARTEFATO DO S3 (SEMPRE) ───────────────────────────────────
     - name: Cleanup S3 Deploy Artifact
       if: always()
+      env:
+        S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
       run: |
-        aws s3 rm s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/deploy/app_deploy.tar.gz 2>/dev/null || true
-        echo "🗑️  Artefato removido do S3."
+        if [ -n "$S3_BUCKET" ]; then
+          aws s3 rm "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" 2>/dev/null || true
+          echo "🗑️  Artefato removido do S3."
+        fi
 
     # ── 10. FECHAR SSH (SEMPRE) ──────────────────────────────────────────────
     - name: Close SSH Port
