@@ -61,7 +61,23 @@ jobs:
     - name: Sync Code to Server
       env:
         SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        APP_DIR: ${{ secrets.APP_DIR }}
       run: |
+        # Validação: APP_DIR é obrigatório e deve ser um caminho absoluto
+        if [ -z "$APP_DIR" ]; then
+          echo "❌ Secret APP_DIR não está configurado!"
+          echo "   Acesse: GitHub → Settings → Secrets → Actions → New secret"
+          echo "   Nome: APP_DIR  |  Valor ex: /home/ubuntu/app"
+          exit 1
+        fi
+
+        if [[ "$APP_DIR" != /* ]]; then
+          echo "❌ APP_DIR deve ser um caminho absoluto (começar com /). Valor atual: '$APP_DIR'"
+          exit 1
+        fi
+
+        echo "📂 Destino: ubuntu@$EC2_HOST:$APP_DIR"
+
         mkdir -p ~/.ssh
         echo "$SSH_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
@@ -77,9 +93,9 @@ jobs:
           --exclude='.git/' \
           --exclude='staticfiles/' \
           -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-          ./ ubuntu@${{ env.EC2_HOST }}:${{ secrets.APP_DIR }}/
+          ./ "ubuntu@${EC2_HOST}:${APP_DIR}/"
 
-        echo "✅ Código sincronizado."
+        echo "✅ Código sincronizado para $APP_DIR"
 
     # ── 7. TAREFAS PÓS-DEPLOY NO SERVIDOR ───────────────────────────────────
     - name: Post-Deploy Tasks
