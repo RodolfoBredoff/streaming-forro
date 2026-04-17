@@ -55,14 +55,39 @@ jobs:
           --protocol tcp --port 22 \
           --cidr ${{ steps.ip.outputs.ipv4 }}/32
 
-    # ── 6. DEPLOY COMPLETO ───────────────────────────────────────────────────
-    - name: Deploy
+    # ── 6. ENVIAR CÓDIGO VIA RSYNC ───────────────────────────────────────────
+    # Rsync envia apenas os arquivos alterados, sem precisar de git na EC2.
+    # Arquivos sensíveis (.env, db.sqlite3, venv) são preservados no servidor.
+    - name: Sync Code to Server
+      env:
+        SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+        rsync -az --delete \
+          --exclude='venv/' \
+          --exclude='.env' \
+          --exclude='db.sqlite3' \
+          --exclude='db.sqlite3.bak_*' \
+          --exclude='*.pyc' \
+          --exclude='__pycache__/' \
+          --exclude='.git/' \
+          --exclude='staticfiles/' \
+          -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+          ./ ubuntu@${{ env.EC2_HOST }}:${{ secrets.APP_DIR }}/
+
+        echo "✅ Código sincronizado."
+
+    # ── 7. TAREFAS PÓS-DEPLOY NO SERVIDOR ───────────────────────────────────
+    - name: Post-Deploy Tasks
       uses: appleboy/ssh-action@master
       with:
         host: ${{ env.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
-        # set -e: qualquer erro para tudo e fecha a porta (step 7 tem if: always())
         script: |
           set -e
 
@@ -74,68 +99,60 @@ jobs:
           echo "  STREAMING FLIX — DEPLOY $(date '+%d/%m/%Y %H:%M:%S')"
           echo "════════════════════════════════════════"
 
-          # ── 1. Atualizar código ──────────────────
+          # ── 1. Dependências Python ───────────────
           echo ""
-          echo "📥 [1/6] Atualizando código..."
+          echo "📦 [1/4] Instalando dependências..."
+          "$VENV/pip" install -r "$APP_DIR/requirements.txt" --quiet
+
+          # ── 2. Backup do banco (SQLite) ──────────
+          echo ""
+          echo "💾 [2/4] Backup do banco de dados..."
           cd "$APP_DIR"
-          git pull origin main
-
-          # ── 2. Dependências Python ───────────────
-          echo ""
-          echo "📦 [2/6] Instalando dependências..."
-          "$VENV/pip" install -r requirements.txt --quiet
-
-          # ── 3. Backup do banco (SQLite) ──────────
-          echo ""
-          echo "💾 [3/6] Backup do banco de dados..."
           BACKUP_FILE="db.sqlite3.bak_$(date '+%Y%m%d_%H%M%S')"
-          cp db.sqlite3 "$BACKUP_FILE" 2>/dev/null && echo "✅ Backup: $BACKUP_FILE" || echo "⚠️  Banco não encontrado, pulando backup."
-          # Mantém apenas os 5 backups mais recentes
-          ls -t db.sqlite3.bak_* 2>/dev/null | tail -n +6 | xargs rm -f && echo "🗑️  Backups antigos removidos." || true
+          cp db.sqlite3 "$BACKUP_FILE" 2>/dev/null \
+            && echo "✅ Backup: $BACKUP_FILE" \
+            || echo "⚠️  Banco não encontrado, pulando backup."
+          ls -t db.sqlite3.bak_* 2>/dev/null | tail -n +6 | xargs rm -f || true
 
-          # ── 4. Migrations ────────────────────────
+          # ── 3. Migrations ────────────────────────
           echo ""
-          echo "🗄️  [4/6] Rodando migrations..."
+          echo "🗄️  [3/4] Rodando migrations..."
           "$VENV/python" manage.py migrate --noinput
 
-          # ── 5. Arquivos estáticos ────────────────
+          # ── 4. Reiniciar Gunicorn ────────────────
           echo ""
-          echo "🎨 [5/6] Coletando arquivos estáticos..."
-          "$VENV/python" manage.py collectstatic --noinput --clear 2>/dev/null || echo "⚠️  collectstatic ignorado (STATIC_ROOT não configurado)."
-
-          # ── 6. Reiniciar Gunicorn ────────────────
-          echo ""
-          echo "🔄 [6/6] Reiniciando Gunicorn..."
+          echo "🔄 [4/4] Reiniciando Gunicorn..."
           sudo systemctl restart gunicorn
           sleep 2
-          systemctl is-active --quiet gunicorn && echo "✅ Gunicorn rodando." || (echo "❌ Gunicorn falhou ao iniciar!" && exit 1)
+          systemctl is-active --quiet gunicorn \
+            && echo "✅ Gunicorn rodando." \
+            || (echo "❌ Gunicorn falhou ao iniciar!" && exit 1)
 
           echo ""
           echo "════════════════════════════════════════"
           echo "  ✅ DEPLOY CONCLUÍDO COM SUCESSO"
           echo "════════════════════════════════════════"
 
-    # ── 7. HEALTH CHECK ──────────────────────────────────────────────────────
+    # ── 8. HEALTH CHECK ──────────────────────────────────────────────────────
     - name: Health Check
       run: |
         echo "⏳ Aguardando aplicação estabilizar..."
         sleep 5
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-          --max-time 15 \
-          --location \
+          --max-time 15 --location \
           "http://${{ env.EC2_HOST }}" || echo "000")
 
         echo "HTTP Response: $HTTP_CODE"
 
         if [[ "$HTTP_CODE" =~ ^(200|301|302)$ ]]; then
-          echo "✅ Aplicação respondendo corretamente ($HTTP_CODE)"
+          echo "✅ Aplicação respondendo ($HTTP_CODE)"
         else
           echo "❌ Aplicação não respondeu como esperado (HTTP $HTTP_CODE)"
           exit 1
         fi
 
-    # ── 8. FECHAR SSH (SEMPRE, mesmo em falha) ───────────────────────────────
+    # ── 9. FECHAR SSH (SEMPRE, mesmo em falha) ───────────────────────────────
     - name: Close SSH Port
       if: always()
       run: |
