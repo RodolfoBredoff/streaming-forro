@@ -3,106 +3,350 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ course.title }} - Detalhes</title>
+    <title>{{ course.title }} - Streaming Flix</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body { background-color: #141414; color: white; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-        .navbar { background-color: rgba(0,0,0,0.9); }
-        .course-header { 
-        padding: 60px 0; 
-        /* Lógica para decidir se usa URL direta ou adiciona o domínio */
-            background: linear-gradient(to bottom, rgba(20,20,20,0) 0%, rgba(20,20,20,1) 100%), 
-                        url('{% if "http" in course.thumbnail %}{{ course.thumbnail }}{% else %}https://d1qx0sqd14bw8g.cloudfront.net/{{ course.thumbnail }}{% endif %}');
-            background-size: cover; background-position: center;
+        :root {
+            --red: #e50914;
+            --red-dark: #b20710;
+            --bg: #141414;
+            --surface: #1f1f1f;
+            --surface2: #2a2a2a;
+            --border: #333;
+            --text-muted: #888;
         }
-        .accordion-item { background-color: #2f2f2f; border: 1px solid #444; color: white; margin-bottom: 10px; }
-        .accordion-button { background-color: #2f2f2f; color: white; font-weight: bold; }
-        .accordion-button:not(.collapsed) { background-color: #444; color: #e50914; box-shadow: none; }
+
+        body { background-color: var(--bg); color: #fff; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+
+        /* ── NAVBAR ── */
+        .navbar { background-color: rgba(0,0,0,0.95); border-bottom: 1px solid var(--border); }
+        .navbar-brand { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.5px; }
+        .navbar-brand span { color: var(--red); }
+
+        /* ── HERO ── */
+        .course-hero {
+            min-height: 420px;
+            display: flex;
+            align-items: flex-end;
+            padding: 60px 0 40px;
+            background:
+                linear-gradient(to top, var(--bg) 0%, rgba(20,20,20,0.4) 60%, rgba(20,20,20,0.1) 100%),
+                linear-gradient(to right, rgba(20,20,20,0.9) 0%, transparent 50%),
+                {% if course.thumbnail %}
+                url('{% if "http" in course.thumbnail %}{{ course.thumbnail }}{% else %}https://d1qx0sqd14bw8g.cloudfront.net/{{ course.thumbnail }}{% endif %}')
+                {% else %}
+                linear-gradient(135deg, #1a1a2e, #16213e)
+                {% endif %};
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .course-hero h1 { font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 900; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+        .course-hero p { color: #ccc; font-size: 1rem; max-width: 600px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+
+        .badge-published {
+            background: var(--red);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── SEARCH ── */
+        .search-input {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: #fff;
+            border-radius: 6px 0 0 6px;
+        }
+        .search-input:focus { background: var(--surface2); border-color: #555; color: #fff; box-shadow: none; }
+        .search-input::placeholder { color: var(--text-muted); }
+
+        /* ── MODULES / ACCORDION ── */
+        .accordion-item {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            color: #fff;
+            margin-bottom: 8px;
+            border-radius: 8px !important;
+            overflow: hidden;
+        }
+        .accordion-button {
+            background-color: var(--surface);
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.95rem;
+            border-radius: 8px !important;
+        }
+        .accordion-button:not(.collapsed) {
+            background-color: var(--surface2);
+            color: var(--red);
+            box-shadow: none;
+        }
         .accordion-button::after { filter: invert(1); }
-        .list-group-item { background-color: #181818; color: #b3b3b3; border: none; transition: 0.3s; }
-        .list-group-item:hover { background-color: #333; color: white; cursor: pointer; }
-        .play-icon { color: #e50914; margin-right: 15px; }
-        .btn-netflix { background-color: #e50914; color: white; border: none; font-weight: bold; }
-        .btn-netflix:hover { background-color: #b20710; color: white; }
+        .accordion-button:focus { box-shadow: none; }
+
+        /* ── LESSON ITEMS ── */
+        .lesson-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            text-decoration: none;
+            color: #bbb;
+            transition: background 0.2s, color 0.2s;
+            background: #181818;
+        }
+        .lesson-item:last-child { border-bottom: none; }
+        .lesson-item:hover { background: var(--surface2); color: #fff; }
+
+        .lesson-num {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            color: #ccc;
+        }
+        .lesson-num.completed { background: #1a4a2e; color: #2ecc71; }
+        .lesson-num.in-progress { background: rgba(229,9,20,0.2); color: var(--red); }
+
+        .lesson-info { flex: 1; min-width: 0; }
+        .lesson-info h6 { margin: 0; font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .lesson-progress-bar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .lesson-progress-fill {
+            height: 100%;
+            background: var(--red);
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        .lesson-progress-fill.done { background: #2ecc71; }
+
+        .lesson-status {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .lesson-status.completed { color: #2ecc71; }
+        .lesson-status.in-progress { color: var(--red); }
+        .lesson-status.fav { color: var(--red); }
+
+        /* module lesson count badge */
+        .module-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: 10px;
+        }
+
+        /* ── SEARCH RESULTS ── */
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            text-decoration: none;
+            color: #bbb;
+            transition: background 0.2s, color 0.2s;
+        }
+        .search-result-item:hover { background: var(--surface2); color: #fff; }
+
+        /* ── BTN ── */
+        .btn-red { background-color: var(--red); color: white; border: none; font-weight: 700; }
+        .btn-red:hover { background-color: var(--red-dark); color: white; }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--red);
+            padding-left: 12px;
+        }
     </style>
 </head>
 <body>
 
+<!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
-    <div class="container">
-        <a class="navbar-brand text-danger fw-bold fs-3" href="{% url 'course_list' %}">Forró Flix</a>
+    <div class="container-fluid px-4">
+        <a class="navbar-brand" href="{% url 'course_list' %}">Streaming<span>Flix</span></a>
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'favorites' %}" class="text-decoration-none text-white d-flex align-items-center gap-1" style="font-size:0.9rem;">
+                <i class="bi bi-heart-fill text-danger"></i> Favoritos
+            </a>
+        </div>
     </div>
 </nav>
 
-<header class="course-header">
+<!-- HERO -->
+<header class="course-hero">
     <div class="container">
-        <h1 class="display-3 fw-bold">{{ course.title }}</h1>
-        <p class="lead col-md-8">{{ course.description }}</p>
+        <div class="mb-2"><span class="badge-published">Curso</span></div>
+        <h1>{{ course.title }}</h1>
+        <p>{{ course.description }}</p>
     </div>
 </header>
 
 <main class="container py-5">
-    <div class="row mb-4">
-    <div class="col-md-6">
-        <form method="GET" class="d-flex">
-            <input type="text" name="search_lesson" class="form-control bg-dark text-white border-secondary" 
-                   placeholder="Pesquisar aula pelo nome..." value="{{ request.GET.search_lesson }}">
-            <button type="submit" class="btn btn-netflix ms-2">
-                <i class="bi bi-search"></i>
-            </button>
-        </form>
-    </div>
-</div>
 
-{% if is_searching %}
-    <h4 class="text-danger">Resultados da busca:</h4>
-    <div class="list-group mb-5">
-        {% for lesson in search_results %}
-            <a href="{% url 'video_detail' lesson.video.pk %}" class="list-group-item list-group-item-action text-white bg-dark border-secondary">
-                <i class="bi bi-play-circle-fill text-danger me-2"></i> {{ lesson.title }}
-            </a>
-        {% empty %}
-            <p class="text-muted">Nenhuma aula encontrada com esse nome.</p>
-        {% endfor %}
-        <a href="?" class="text-info mt-2 d-inline-block">Limpar busca</a>
+    <!-- SEARCH -->
+    <div class="row mb-5">
+        <div class="col-md-6">
+            <form method="GET" class="d-flex">
+                <input type="text" name="search_lesson"
+                       class="form-control search-input"
+                       placeholder="Pesquisar aula..."
+                       value="{{ request.GET.search_lesson }}">
+                <button type="submit" class="btn btn-red ms-0 rounded-0 rounded-end-2">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+        </div>
     </div>
-    <hr class="border-secondary">
-{% endif %}
-    <h3 class="mb-4">Módulos e Aulas</h3>
-    
+
+    <!-- SEARCH RESULTS -->
+    {% if is_searching %}
+    <div class="mb-5">
+        <div class="section-title">Resultados da busca</div>
+        {% for lesson in search_results %}
+        {% if lesson.video %}
+        <a href="{% url 'video_detail' lesson.video.pk %}" class="search-result-item">
+            <i class="bi bi-play-circle-fill text-danger fs-5"></i>
+            <div>
+                <div style="font-weight:600;color:#fff;">{{ lesson.title }}</div>
+                <small class="text-muted">{{ lesson.module.title }}</small>
+            </div>
+            {% with progress_map|default_if_none:'' as pm %}
+            {% endwith %}
+        </a>
+        {% endif %}
+        {% empty %}
+        <p class="text-muted">Nenhuma aula encontrada com esse nome.</p>
+        {% endfor %}
+        <a href="?" class="text-danger mt-2 d-inline-block small">Limpar busca</a>
+    </div>
+    <hr class="border-secondary mb-5">
+    {% endif %}
+
+    <!-- MODULES -->
+    <div class="section-title">Módulos e Aulas</div>
+
     <div class="accordion" id="accordionModules">
         {% for module in course.modules.all %}
         <div class="accordion-item">
             <h2 class="accordion-header" id="heading{{ module.id }}">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ module.id }}">
-                    <i class="bi bi-collection-play-fill me-2"></i> {{ module.title }}
+                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapse{{ module.id }}"
+                        aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}">
+                    <i class="bi bi-collection-play me-2 text-danger"></i>
+                    {{ module.title }}
+                    <span class="module-meta">{{ module.lessons.count }} aula{{ module.lessons.count|pluralize }}</span>
                 </button>
             </h2>
-            <div id="collapse{{ module.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionModules">
+            <div id="collapse{{ module.id }}"
+                 class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                 data-bs-parent="#accordionModules">
                 <div class="accordion-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for lesson in module.lessons.all %}
-                        <a href="{% url 'video_detail' lesson.video.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                            <i class="bi bi-play-circle-fill play-icon fs-4"></i>
-                            <div>
-                                <h6 class="mb-0">{{ lesson.title }}</h6>
-                                <small class="text-muted">Aula {{ forloop.counter }}</small>
+                    {% for lesson in module.lessons.all %}
+                    {% if lesson.video %}
+                    <a href="{% url 'video_detail' lesson.video.pk %}" class="lesson-item">
+
+                        <!-- Number / status icon -->
+                        {% if progress_map %}
+                            {% with progress_map|default_if_none:'' as pm %}{% endwith %}
+                        {% endif %}
+                        <div class="lesson-num {% if progress_map and lesson.video.pk in progress_map %}{% if progress_map|default_if_none:''  %}{% endif %}{% endif %}
+                                     {% with prog=progress_map|default:'' %}{% endwith %}">
+                            {{ forloop.counter }}
+                        </div>
+
+                        <div class="lesson-info">
+                            <h6>{{ lesson.title }}</h6>
+                            <!-- Progress bar -->
+                            <div class="lesson-progress-bar">
+                                <div class="lesson-progress-fill" style="width: 0%;"
+                                     data-video-id="{{ lesson.video.pk }}"></div>
                             </div>
-                        </a>
-                        {% empty %}
-                        <div class="p-3 text-muted">Nenhuma aula cadastrada neste módulo.</div>
-                        {% endfor %}
+                        </div>
+
+                        <!-- Status icons -->
+                        <div class="d-flex gap-2 align-items-center">
+                            {% if lesson.id in fav_lesson_ids %}
+                            <i class="bi bi-heart-fill lesson-status fav" title="Favoritado"></i>
+                            {% endif %}
+                            <i class="bi bi-play-circle lesson-status" style="color: var(--text-muted);"></i>
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="lesson-item" style="opacity:0.5;cursor:default;">
+                        <div class="lesson-num">{{ forloop.counter }}</div>
+                        <div class="lesson-info">
+                            <h6>{{ lesson.title }}</h6>
+                            <small style="color:var(--text-muted);">Vídeo em breve</small>
+                        </div>
                     </div>
+                    {% endif %}
+                    {% empty %}
+                    <div class="p-4 text-muted text-center small">Nenhuma aula cadastrada neste módulo.</div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
         {% empty %}
-        <p class="text-muted">Em breve, novos conteúdos serão adicionados.</p>
+        <p class="text-muted mt-4">Em breve, novos conteúdos serão adicionados.</p>
         {% endfor %}
     </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Populate progress bars from server data
+    const progressData = {
+        {% for video_id, prog in progress_map.items %}
+        {{ video_id }}: { position: {{ prog.position_seconds }}, completed: {% if prog.completed %}true{% else %}false{% endif %} },
+        {% endfor %}
+    };
+
+    document.querySelectorAll('.lesson-progress-fill').forEach(bar => {
+        const videoId = parseInt(bar.dataset.videoId);
+        const prog = progressData[videoId];
+        if (!prog) return;
+
+        if (prog.completed) {
+            bar.style.width = '100%';
+            bar.classList.add('done');
+            const numEl = bar.closest('.lesson-item')?.querySelector('.lesson-num');
+            if (numEl) { numEl.classList.add('completed'); numEl.innerHTML = '<i class="bi bi-check-lg"></i>'; }
+        } else if (prog.position > 5) {
+            // We can't compute % without duration, so just show a partial bar indicator
+            bar.style.width = '30%';
+            const numEl = bar.closest('.lesson-item')?.querySelector('.lesson-num');
+            if (numEl) numEl.classList.add('in-progress');
+        }
+    });
+</script>
 </body>
 </html>

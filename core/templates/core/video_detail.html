@@ -2,80 +2,620 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>{{ video.titulo }} - Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ video.titulo }} - Streaming Flix</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body { background-color: #000; color: white; margin: 0; overflow: hidden; }
-        .video-container {
+        :root {
+            --red: #e50914;
+            --red-dark: #b20710;
+            --bg: #0a0a0a;
+            --surface: #181818;
+            --surface2: #222;
+            --border: #333;
+            --text-muted: #888;
+            --sidebar-width: 320px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg);
+            color: #fff;
+            margin: 0;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            transition: opacity 0.3s;
+        }
+        .topbar.hidden { opacity: 0; pointer-events: none; }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.35); color: #fff; }
+
+        .topbar-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            opacity: 0.9;
+            max-width: 50%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+        /* ── MAIN LAYOUT ── */
+        .player-layout {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── VIDEO AREA ── */
+        .video-area {
+            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
+            background: #000;
+            position: relative;
+            overflow: hidden;
         }
+
         video {
-            width: 80%;
-            max-height: 70vh; /* Reduzi um pouco para dar espaço aos botões */
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
             outline: none;
-            box-shadow: 0 0 50px rgba(229, 9, 20, 0.2);
         }
-        .back-button {
+
+        /* ── AUTOPLAY OVERLAY ── */
+        .autoplay-overlay {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
+            bottom: 80px;
+            right: 24px;
+            background: rgba(20,20,20,0.92);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: none;
+            align-items: center;
+            gap: 14px;
+            z-index: 50;
+            min-width: 280px;
+            backdrop-filter: blur(8px);
+        }
+        .autoplay-overlay.visible { display: flex; }
+        .autoplay-thumb {
+            width: 60px;
+            height: 40px;
+            background: var(--surface);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--red);
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+        .autoplay-info { flex: 1; min-width: 0; }
+        .autoplay-info small { color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .autoplay-info p { margin: 0; font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .autoplay-countdown {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .autoplay-cancel { color: var(--text-muted); font-size: 0.75rem; cursor: pointer; text-decoration: underline; white-space: nowrap; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .sidebar.collapsed { transform: translateX(var(--sidebar-width)); position: absolute; right: 0; top: 0; bottom: 0; }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .sidebar-header h6 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+        .sidebar-header p { margin: 4px 0 0; font-weight: 700; font-size: 0.95rem; }
+
+        .sidebar-lessons { overflow-y: auto; flex: 1; }
+        .sidebar-lessons::-webkit-scrollbar { width: 4px; }
+        .sidebar-lessons::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-lessons::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .sidebar-lesson {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
             text-decoration: none;
-            font-size: 1.2rem;
-            z-index: 10;
+            color: #aaa;
+            transition: background 0.2s, color 0.2s;
+            cursor: pointer;
         }
-        .video-info {
-            margin-top: 20px;
-            text-align: center;
+        .sidebar-lesson:hover { background: var(--surface2); color: #fff; }
+        .sidebar-lesson.active { background: rgba(229,9,20,0.12); color: #fff; border-left: 3px solid var(--red); }
+
+        .lesson-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            background: var(--border);
         }
-        .btn-netflix {
-            background-color: #e50914;
-            color: white;
+        .lesson-icon.done { background: #1a4a2e; color: #2ecc71; }
+        .lesson-icon.current { background: var(--red); color: #fff; }
+
+        .lesson-meta { flex: 1; min-width: 0; }
+        .lesson-meta span { display: block; font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lesson-meta small { color: var(--text-muted); font-size: 0.7rem; }
+
+        .lesson-progress-bar {
+            height: 2px;
+            background: var(--border);
+            border-radius: 1px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+        .lesson-progress-fill { height: 100%; background: var(--red); border-radius: 1px; }
+
+        /* ── BOTTOM CONTROLS ── */
+        .bottom-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+            padding: 40px 24px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: opacity 0.3s;
+        }
+        .bottom-controls.hidden { opacity: 0; pointer-events: none; }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            text-decoration: none;
             border: none;
-            font-weight: bold;
-            padding: 10px 25px;
+            cursor: pointer;
+            transition: transform 0.15s, background 0.2s;
         }
-        .btn-netflix:hover {
-            background-color: #b20710;
-            color: white;
+        .nav-btn:hover { transform: scale(1.04); }
+        .nav-btn:active { transform: scale(0.97); }
+        .nav-btn-prev { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+        .nav-btn-prev:hover { background: rgba(255,255,255,0.2); color: #fff; }
+        .nav-btn-next { background: var(--red); color: #fff; }
+        .nav-btn-next:hover { background: var(--red-dark); color: #fff; }
+
+        .completed-badge {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: rgba(46,204,113,0.15);
+            border: 1px solid #2ecc71;
+            color: #2ecc71;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .completed-badge.visible { display: flex; }
+
+        /* ── FAVORITE BUTTON ── */
+        .btn-fav {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, transform 0.15s;
+            font-size: 1.1rem;
+        }
+        .btn-fav:hover { background: rgba(255,255,255,0.12); transform: scale(1.1); }
+        .btn-fav.active { color: #e50914; border-color: #e50914; background: rgba(229,9,20,0.12); }
+
+        /* ── SIDEBAR TOGGLE ── */
+        .btn-sidebar-toggle {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            border-radius: 6px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-sidebar-toggle:hover { background: rgba(255,255,255,0.12); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .topbar-title { display: none; }
+            video { max-height: 100vh; }
         }
     </style>
 </head>
 <body>
 
-    <a href="javascript:history.back()" class="back-button">
-        <i class="bi bi-arrow-left"></i> Voltar para o curso
+<!-- TOP BAR -->
+<div class="topbar" id="topbar">
+    {% if curso %}
+    <a href="{% url 'course_detail' curso.pk %}" class="back-btn">
+        <i class="bi bi-arrow-left"></i> Voltar ao Curso
     </a>
+    {% else %}
+    <a href="{% url 'course_list' %}" class="back-btn">
+        <i class="bi bi-arrow-left"></i> Cursos
+    </a>
+    {% endif %}
 
-    <div class="video-container">
-        <video controls autoplay controlsList="nodownload">
+    <span class="topbar-title">{{ video.titulo }}</span>
+
+    <div class="topbar-actions">
+        <!-- Favoritar -->
+        {% if aula_atual %}
+        <button class="btn-fav {% if is_favorite %}active{% endif %}" id="btnFavorite"
+                title="{% if is_favorite %}Remover dos favoritos{% else %}Adicionar aos favoritos{% endif %}">
+            <i class="bi {% if is_favorite %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+        </button>
+        {% endif %}
+
+        <!-- Toggle sidebar -->
+        <button class="btn-sidebar-toggle" id="btnSidebar">
+            <i class="bi bi-collection-play"></i>
+            <span class="d-none d-md-inline">Aulas</span>
+        </button>
+    </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="player-layout">
+
+    <!-- VIDEO AREA -->
+    <div class="video-area" id="videoArea">
+        <video id="videoPlayer" controls controlsList="nodownload" playsinline>
             <source src="{{ url_assinada }}" type="video/mp4">
-            Seu navegador não suporta vídeos.
+            Seu navegador não suporta vídeos HTML5.
         </video>
-        
-        <div class="video-info">
-            <h2 class="fw-bold">{{ video.titulo }}</h2>
-            
-            <div class="d-flex justify-content-center gap-3 mt-4">
-                {% if aula_anterior %}
-                    <a href="{% url 'video_detail' aula_anterior.video.pk %}" class="btn btn-outline-light">
-                        <i class="bi bi-skip-start-fill"></i> Anterior
-                    </a>
-                {% endif %}
 
-                {% if proxima_aula %}
-                    <a href="{% url 'video_detail' proxima_aula.video.pk %}" class="btn btn-netflix">
-                        Próxima Aula <i class="bi bi-skip-end-fill"></i>
-                    </a>
+        <!-- BOTTOM CONTROLS -->
+        <div class="bottom-controls" id="bottomControls">
+            <div class="d-flex gap-2">
+                {% if aula_anterior and aula_anterior.video %}
+                <a href="{% url 'video_detail' aula_anterior.video.pk %}" class="nav-btn nav-btn-prev">
+                    <i class="bi bi-skip-start-fill"></i> Anterior
+                </a>
                 {% endif %}
             </div>
+
+            <div class="completed-badge" id="completedBadge">
+                <i class="bi bi-check-circle-fill"></i> Aula concluída!
             </div>
+
+            <div class="d-flex gap-2">
+                {% if proxima_aula and proxima_aula.video %}
+                <a href="{% url 'video_detail' proxima_aula.video.pk %}" class="nav-btn nav-btn-next" id="btnNextLesson">
+                    Próxima Aula <i class="bi bi-skip-end-fill"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- AUTOPLAY OVERLAY -->
+        {% if proxima_aula and proxima_aula.video %}
+        <div class="autoplay-overlay" id="autoplayOverlay">
+            <div class="autoplay-thumb"><i class="bi bi-play-fill"></i></div>
+            <div class="autoplay-info">
+                <small>A seguir</small>
+                <p>{{ proxima_aula.title }}</p>
+            </div>
+            <div class="autoplay-countdown" id="autoplayCount">10</div>
+            <span class="autoplay-cancel" id="autoplayCancel">Cancelar</span>
+        </div>
+        {% endif %}
     </div>
 
+    <!-- SIDEBAR -->
+    {% if modulo_aulas %}
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h6>Módulo</h6>
+            <p>{{ modulo.title }}</p>
+        </div>
+        <div class="sidebar-lessons">
+            {% for lesson in modulo_aulas %}
+            {% if lesson.video %}
+            <a href="{% url 'video_detail' lesson.video.pk %}"
+               class="sidebar-lesson {% if lesson.id == aula_atual.id %}active{% endif %}">
+                <div class="lesson-icon {% if lesson.id == aula_atual.id %}current{% endif %}">
+                    {% if lesson.id == aula_atual.id %}
+                        <i class="bi bi-play-fill"></i>
+                    {% else %}
+                        <span>{{ forloop.counter }}</span>
+                    {% endif %}
+                </div>
+                <div class="lesson-meta">
+                    <span>{{ lesson.title }}</span>
+                    <small>Aula {{ forloop.counter }}</small>
+                </div>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const VIDEO_ID = {{ video.pk }};
+    const LESSON_ID = {% if aula_atual %}{{ aula_atual.pk }}{% else %}null{% endif %};
+    const SAVED_POSITION = {{ watch_progress.position_seconds|default:"0" }};
+    const IS_FAVORITE_INIT = {% if is_favorite %}true{% else %}false{% endif %};
+    const NEXT_URL = {% if proxima_aula and proxima_aula.video %}"{% url 'video_detail' proxima_aula.video.pk %}"{% else %}null{% endif %};
+    const CSRF_TOKEN = "{{ csrf_token }}";
+
+    const videoEl = document.getElementById('videoPlayer');
+    const topbar = document.getElementById('topbar');
+    const bottomControls = document.getElementById('bottomControls');
+    const completedBadge = document.getElementById('completedBadge');
+    const autoplayOverlay = document.getElementById('autoplayOverlay');
+    const autoplayCountEl = document.getElementById('autoplayCount');
+    const autoplayCancel = document.getElementById('autoplayCancel');
+    const btnFavorite = document.getElementById('btnFavorite');
+    const btnSidebar = document.getElementById('btnSidebar');
+    const sidebar = document.getElementById('sidebar');
+
+    // ── RESUME POSITION ──
+    videoEl.addEventListener('loadedmetadata', () => {
+        if (SAVED_POSITION > 5) {
+            videoEl.currentTime = SAVED_POSITION;
+        }
+    });
+
+    // ── SAVE PROGRESS ──
+    let lastSavedTime = -1;
+    let saveTimer = null;
+
+    function saveProgress(force = false) {
+        const pos = videoEl.currentTime;
+        const dur = videoEl.duration;
+        if (!dur || (!force && Math.abs(pos - lastSavedTime) < 10)) return;
+        lastSavedTime = pos;
+
+        fetch('/api/save-progress/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+            body: JSON.stringify({ video_id: VIDEO_ID, position_seconds: pos, duration: dur }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.completed) showCompletedBadge();
+        })
+        .catch(() => {});
+    }
+
+    videoEl.addEventListener('timeupdate', () => {
+        const pct = videoEl.currentTime / (videoEl.duration || 1);
+        if (pct >= 0.9) showCompletedBadge();
+    });
+
+    // Save every 10 seconds
+    setInterval(() => saveProgress(), 10000);
+    // Save on pause / before page unload
+    videoEl.addEventListener('pause', () => saveProgress(true));
+    window.addEventListener('beforeunload', () => saveProgress(true));
+
+    // ── COMPLETED BADGE ──
+    let completedShown = false;
+    function showCompletedBadge() {
+        if (completedShown) return;
+        completedShown = true;
+        if (completedBadge) completedBadge.classList.add('visible');
+    }
+
+    // ── AUTO-PLAY NEXT ──
+    let autoplayTimer = null;
+    let autoplaySeconds = 10;
+
+    videoEl.addEventListener('ended', () => {
+        saveProgress(true);
+        if (!NEXT_URL) return;
+        autoplaySeconds = 10;
+        if (autoplayOverlay) autoplayOverlay.classList.add('visible');
+        autoplayTimer = setInterval(() => {
+            autoplaySeconds--;
+            if (autoplayCountEl) autoplayCountEl.textContent = autoplaySeconds;
+            if (autoplaySeconds <= 0) {
+                clearInterval(autoplayTimer);
+                window.location.href = NEXT_URL;
+            }
+        }, 1000);
+    });
+
+    if (autoplayCancel) {
+        autoplayCancel.addEventListener('click', () => {
+            clearInterval(autoplayTimer);
+            if (autoplayOverlay) autoplayOverlay.classList.remove('visible');
+        });
+    }
+
+    if (autoplayCountEl) {
+        autoplayCountEl.addEventListener('click', () => {
+            clearInterval(autoplayTimer);
+            window.location.href = NEXT_URL;
+        });
+    }
+
+    // ── FAVORITE ──
+    if (btnFavorite && LESSON_ID) {
+        let isFavorite = IS_FAVORITE_INIT;
+        btnFavorite.addEventListener('click', () => {
+            fetch('/api/toggle-favorite/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ lesson_id: LESSON_ID }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                isFavorite = data.is_favorite;
+                const icon = btnFavorite.querySelector('i');
+                if (isFavorite) {
+                    icon.className = 'bi bi-heart-fill';
+                    btnFavorite.classList.add('active');
+                    btnFavorite.title = 'Remover dos favoritos';
+                } else {
+                    icon.className = 'bi bi-heart';
+                    btnFavorite.classList.remove('active');
+                    btnFavorite.title = 'Adicionar aos favoritos';
+                }
+            })
+            .catch(() => {});
+        });
+    }
+
+    // ── SIDEBAR TOGGLE ──
+    let sidebarOpen = true;
+    if (btnSidebar && sidebar) {
+        btnSidebar.addEventListener('click', () => {
+            sidebarOpen = !sidebarOpen;
+            sidebar.style.display = sidebarOpen ? '' : 'none';
+        });
+    }
+
+    // ── HIDE CONTROLS ON MOUSE IDLE ──
+    let mouseTimer = null;
+    function showControls() {
+        topbar.classList.remove('hidden');
+        bottomControls.classList.remove('hidden');
+        clearTimeout(mouseTimer);
+        mouseTimer = setTimeout(() => {
+            if (!videoEl.paused) {
+                topbar.classList.add('hidden');
+                bottomControls.classList.add('hidden');
+            }
+        }, 3500);
+    }
+    document.addEventListener('mousemove', showControls);
+    document.addEventListener('touchstart', showControls);
+    videoEl.addEventListener('play', showControls);
+    videoEl.addEventListener('pause', showControls);
+
+    // ── KEYBOARD SHORTCUTS ──
+    document.addEventListener('keydown', (e) => {
+        // Don't trigger when typing in inputs
+        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+        switch (e.key) {
+            case ' ':
+            case 'k':
+                e.preventDefault();
+                videoEl.paused ? videoEl.play() : videoEl.pause();
+                break;
+            case 'ArrowRight':
+            case 'l':
+                e.preventDefault();
+                videoEl.currentTime = Math.min(videoEl.currentTime + 10, videoEl.duration);
+                break;
+            case 'ArrowLeft':
+            case 'j':
+                e.preventDefault();
+                videoEl.currentTime = Math.max(videoEl.currentTime - 10, 0);
+                break;
+            case 'f':
+                e.preventDefault();
+                if (document.fullscreenElement) document.exitFullscreen();
+                else videoEl.requestFullscreen();
+                break;
+            case 'm':
+                e.preventDefault();
+                videoEl.muted = !videoEl.muted;
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                videoEl.volume = Math.min(videoEl.volume + 0.1, 1);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                videoEl.volume = Math.max(videoEl.volume - 0.1, 0);
+                break;
+        }
+    });
+</script>
 </body>
 </html>

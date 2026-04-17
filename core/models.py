@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from django.utils.text import slugify
 
 class Video(models.Model):
@@ -62,3 +63,29 @@ class Lesson(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class WatchProgress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='watch_progresses')
+    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name='watch_progresses')
+    position_seconds = models.FloatField(default=0)
+    completed = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'video')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.video.titulo}"
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorites')
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'lesson')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.lesson.title}"

@@ -3,45 +3,406 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meus Cursos</title>
+    <title>Streaming Flix</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --red: #e50914;
+            --red-dark: #b20710;
+            --bg: #141414;
+            --surface: #1f1f1f;
+            --surface2: #2a2a2a;
+            --border: #333;
+            --text-muted: #888;
+        }
 
-<nav class="navbar navbar-dark bg-dark mb-5">
-<div class="container">
-        <a class="navbar-brand" href="#"> Plataforma de aulas</a>
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg);
+            color: #fff;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            background: linear-gradient(to bottom, rgba(0,0,0,0.98), rgba(0,0,0,0.6));
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.3s;
+        }
+        .navbar.scrolled { background: rgba(0,0,0,0.98); }
+
+        .navbar-logo { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.5px; text-decoration: none; }
+        .navbar-logo span { color: var(--red); }
+        .navbar-logo em { color: #fff; font-style: normal; }
+
+        .navbar-links { display: flex; align-items: center; gap: 24px; }
+        .navbar-links a {
+            color: #ccc;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .navbar-links a:hover { color: #fff; }
+        .navbar-links a.active { color: #fff; font-weight: 700; }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: var(--red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        /* ── HERO BANNER ── */
+        .hero {
+            height: 70vh;
+            min-height: 400px;
+            display: flex;
+            align-items: flex-end;
+            padding-bottom: 80px;
+            background:
+                linear-gradient(to top, var(--bg) 0%, rgba(20,20,20,0.3) 50%, rgba(20,20,20,0.1) 100%),
+                linear-gradient(to right, rgba(20,20,20,0.85) 0%, transparent 60%),
+                linear-gradient(135deg, #1a0a0a 0%, #2d0b0b 50%, #0a0a1a 100%);
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-content { padding: 0 40px; }
+        .hero-eyebrow {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--red);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .hero-title {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+        }
+        .hero-desc {
+            color: #ccc;
+            font-size: 1rem;
+            max-width: 500px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+        }
+        .hero-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--red);
+            color: #fff;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .hero-btn:hover { background: var(--red-dark); color: #fff; transform: scale(1.03); }
+
+        /* ── SECTIONS ── */
+        .content-section { padding: 0 40px 50px; }
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title i { color: var(--red); }
+
+        /* ── COURSE CARDS ── */
+        .cards-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .course-card {
+            background: var(--surface);
+            border-radius: 8px;
+            overflow: hidden;
+            text-decoration: none;
+            color: #fff;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            display: block;
+        }
+        .course-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            color: #fff;
+            z-index: 5;
+            position: relative;
+        }
+
+        .card-thumb {
+            width: 100%;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            display: block;
+            background: var(--surface2);
+        }
+        .card-thumb-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: linear-gradient(135deg, #1a0a0a, #2d0b0b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: var(--red);
+        }
+
+        .card-body-inner { padding: 12px 14px 16px; }
+        .card-course-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; line-height: 1.3; }
+        .card-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin: 0; }
+
+        /* ── CONTINUE WATCHING ── */
+        .continue-card {
+            background: var(--surface);
+            border-radius: 8px;
+            overflow: hidden;
+            text-decoration: none;
+            color: #fff;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: block;
+            position: relative;
+        }
+        .continue-card:hover {
+            transform: scale(1.04);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            color: #fff;
+        }
+
+        .continue-thumb {
+            width: 100%;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            background: var(--surface2);
+        }
+        .continue-thumb-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: linear-gradient(135deg, #0a1a0a, #0b2d0b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #2ecc71;
+        }
+
+        .continue-progress {
+            height: 3px;
+            background: var(--border);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+        .continue-progress-fill { height: 100%; background: var(--red); }
+
+        .continue-info { padding: 10px 12px 14px; }
+        .continue-course { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .continue-lesson { font-size: 0.85rem; font-weight: 700; margin: 2px 0; }
+
+        .play-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 48px;
+            height: 48px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .continue-card:hover .play-overlay { opacity: 1; }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state i { font-size: 3rem; margin-bottom: 16px; display: block; }
+
+        /* ── LOGOUT LINK ── */
+        .logout-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+        .logout-link:hover { color: #fff; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .navbar { padding: 14px 20px; }
+            .hero { height: 55vh; }
+            .hero-content { padding: 0 20px; }
+            .content-section { padding: 0 20px 40px; }
+            .cards-row { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="mainNav">
+    <a class="navbar-logo" href="{% url 'course_list' %}">
+        <em>Streaming</em><span>Flix</span>
+    </a>
+    <div class="navbar-links">
+        <a href="{% url 'course_list' %}" class="active">Início</a>
+        <a href="{% url 'favorites' %}"><i class="bi bi-heart-fill text-danger me-1"></i>Favoritos</a>
+    </div>
+    <div class="navbar-user">
+        <a href="{% url 'favorites' %}" class="text-decoration-none text-secondary d-none d-md-inline" style="font-size:0.85rem;">
+            <i class="bi bi-heart me-1"></i>Favoritos
+        </a>
+        <a href="/accounts/logout/" class="logout-link">
+            <i class="bi bi-box-arrow-right"></i> Sair
+        </a>
+        <div class="user-avatar" title="{{ request.user.username }}">
+            {{ request.user.username|slice:":1"|upper }}
+        </div>
     </div>
 </nav>
 
-<div class="container">
-    <h2 class="mb-4">Cursos Disponíveis</h2>
-    <p>Total de cursos encontrados: {{ courses|length }}</p>
-    <div class="row">
-        {% for course in courses %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if course.thumbnail %}
-                    {% if "http" in course.thumbnail %}
-                        <img src="{{ course.thumbnail }}" class="card-img-top" alt="{{ course.title }}" style="height: 200px; object-fit: cover;">
-                    {% else %}
-                        <img src="https://d1qx0sqd14bw8g.cloudfront.net/{{ course.thumbnail }}" class="card-img-top" alt="{{ course.title }}" style="height: 200px; object-fit: cover;">
-                    {% endif %}
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title">{{ course.title }}</h5>
-                    <p class="card-text text-muted">{{ course.description|truncatewords:15 }}</p>
-                </div>
-                <div class="card-footer bg-white border-top-0">
-                    <a href="{% url 'course_detail' course.pk %}" class="btn btn-primary w-100">Acessar Curso</a>
-                </div>
-            </div>
-        </div>
-        {% empty %}
-        <p>Nenhum curso publicado no momento.</p>
-        {% endfor %}
+<!-- HERO -->
+{% with courses.0 as featured %}
+{% if featured %}
+<section class="hero" {% if featured.thumbnail %}
+    style="background:
+        linear-gradient(to top, #141414 0%, rgba(20,20,20,0.3) 50%, rgba(20,20,20,0.1) 100%),
+        linear-gradient(to right, rgba(20,20,20,0.85) 0%, transparent 60%),
+        url('{% if "http" in featured.thumbnail %}{{ featured.thumbnail }}{% else %}https://d1qx0sqd14bw8g.cloudfront.net/{{ featured.thumbnail }}{% endif %}') center/cover no-repeat"
+{% endif %}>
+    <div class="hero-content">
+        <div class="hero-eyebrow"><i class="bi bi-collection-play-fill"></i> Destaque</div>
+        <h1 class="hero-title">{{ featured.title }}</h1>
+        <p class="hero-desc">{{ featured.description|truncatewords:25 }}</p>
+        <a href="{% url 'course_detail' featured.pk %}" class="hero-btn">
+            <i class="bi bi-play-fill"></i> Assistir agora
+        </a>
     </div>
-</div>
+</section>
+{% endif %}
+{% endwith %}
 
+<main style="padding-top: 40px;">
+
+    <!-- CONTINUE WATCHING -->
+    {% if continue_watching %}
+    <section class="content-section">
+        <div class="section-title">
+            <i class="bi bi-play-circle-fill"></i> Continue assistindo
+        </div>
+        <div class="cards-row">
+            {% for item in continue_watching %}
+            <a href="{% url 'video_detail' item.lesson.video.pk %}" class="continue-card">
+                {% if item.course.thumbnail %}
+                    <img src="{% if 'http' in item.course.thumbnail %}{{ item.course.thumbnail }}{% else %}https://d1qx0sqd14bw8g.cloudfront.net/{{ item.course.thumbnail }}{% endif %}"
+                         alt="{{ item.course.title }}" class="continue-thumb">
+                {% else %}
+                    <div class="continue-thumb-placeholder">
+                        <i class="bi bi-play-circle"></i>
+                    </div>
+                {% endif %}
+                <div class="play-overlay"><i class="bi bi-play-fill text-white"></i></div>
+                <div class="continue-progress">
+                    <div class="continue-progress-fill" style="width: 30%;"></div>
+                </div>
+                <div class="continue-info">
+                    <div class="continue-course">{{ item.course.title }}</div>
+                    <div class="continue-lesson">{{ item.lesson.title }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ALL COURSES -->
+    <section class="content-section">
+        <div class="section-title">
+            <i class="bi bi-grid-fill"></i>
+            Todos os cursos
+            <span style="font-size:0.8rem;color:var(--text-muted);font-weight:400;">({{ courses|length }})</span>
+        </div>
+
+        {% if courses %}
+        <div class="cards-row">
+            {% for course in courses %}
+            <a href="{% url 'course_detail' course.pk %}" class="course-card">
+                {% if course.thumbnail %}
+                    <img src="{% if 'http' in course.thumbnail %}{{ course.thumbnail }}{% else %}https://d1qx0sqd14bw8g.cloudfront.net/{{ course.thumbnail }}{% endif %}"
+                         alt="{{ course.title }}" class="card-thumb">
+                {% else %}
+                    <div class="card-thumb-placeholder">
+                        <i class="bi bi-collection-play"></i>
+                    </div>
+                {% endif %}
+                <div class="card-body-inner">
+                    <div class="card-course-title">{{ course.title }}</div>
+                    <p class="card-desc">{{ course.description|truncatewords:10 }}</p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-collection-play"></i>
+            <p>Nenhum curso publicado no momento.<br>Volte em breve!</p>
+        </div>
+        {% endif %}
+    </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Navbar scroll effect
+    const nav = document.getElementById('mainNav');
+    window.addEventListener('scroll', () => {
+        nav.classList.toggle('scrolled', window.scrollY > 50);
+    });
+</script>
 </body>
 </html>

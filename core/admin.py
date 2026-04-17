@@ -1,7 +1,7 @@
 from django.contrib import admin
-from .models import Video, Course, Module, Lesson
+from .models import Video, Course, Module, Lesson, WatchProgress, Favorite
 from django.db import models
-from .widgets import S3ImageWidget # Importa nosso widget novo
+from .widgets import S3ImageWidget
 
 # Isso permite editar Aulas dentro da página do Módulo
 class LessonInline(admin.TabularInline):
@@ -37,3 +37,16 @@ class ModuleAdmin(admin.ModelAdmin):
     list_display = ('title', 'course', 'order')
     list_filter = ('course',)
     inlines = [LessonInline]
+
+
+@admin.register(WatchProgress)
+class WatchProgressAdmin(admin.ModelAdmin):
+    list_display = ('user', 'video', 'position_seconds', 'completed', 'updated_at')
+    list_filter = ('completed',)
+    search_fields = ('user__username', 'video__titulo')
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = ('user', 'lesson', 'created_at')
+    search_fields = ('user__username', 'lesson__title')

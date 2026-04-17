@@ -51,16 +51,23 @@ jobs:
     - name: Deploy via SSH
       uses: appleboy/ssh-action@master
       with:
-        # Usando env.EC2_HOST em vez de secrets
-        host: ${{ env.EC2_HOST }} 
+        host: ${{ env.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # Garante que o script é executável (segurança extra)
           chmod +x /home/ubuntu/deploy.sh
-          
-          # Executa o script de automação que criamos
           /home/ubuntu/deploy.sh
+
+    - name: Run Database Migrations
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ env.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd ${{ secrets.APP_DIR }}
+          source ${{ secrets.VENV_DIR }}/bin/activate
+          python manage.py migrate --noinput
 
     - name: Close SSH Port (Always)
       if: always()
