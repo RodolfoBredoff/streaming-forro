@@ -43,8 +43,8 @@ jobs:
         echo "✅ IP detectado: $PUBLIC_IP"
 
     # ── 4. EMPACOTAR E ENVIAR PARA O S3 ─────────────────────────────────────
-    # O runner faz upload para S3 e gera uma URL pré-assinada (válida 1h).
-    # A EC2 vai baixar via curl — sem precisar de credenciais AWS no servidor.
+    # O tarball inclui .github/scripts/deploy.sh que será executado via SSM.
+    # A URL pré-assinada permite que o servidor baixe sem credenciais AWS.
     - name: Package Code and Upload to S3
       env:
         S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
@@ -75,7 +75,7 @@ jobs:
           "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" \
           --no-progress
 
-        echo "🔗 Gerando URL pré-assinada..."
+        echo "🔗 Gerando URL pré-assinada (válida 1h)..."
         PRESIGNED_URL=$(aws s3 presign \
           "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" \
           --expires-in 3600)
@@ -84,81 +84,42 @@ jobs:
         echo "✅ Pacote enviado ($(du -sh /tmp/app_deploy.tar.gz | cut -f1))"
 
     # ── 5. DEPLOY VIA SSM ────────────────────────────────────────────────────
-    # SSM Run Command executa o script no servidor sem SSH nem chave.
-    # É o mesmo mecanismo que você usa para acessar via console AWS.
+    # Sem SSH, sem chave. SSM executa .github/scripts/deploy.sh no servidor.
+    # jq constrói o JSON de parâmetros sem heredoc (evita erro de YAML).
     - name: Deploy via SSM
       env:
         PRESIGNED_URL: ${{ env.PRESIGNED_URL }}
         APP_DIR: ${{ secrets.APP_DIR }}
       run: |
-        # Monta o script de deploy como string
-        DEPLOY_SCRIPT=$(cat << SCRIPT
-set -e
-
-APP_DIR="${APP_DIR}"
-VENV="\$APP_DIR/venv/bin"
-
-echo ""
-echo "════════════════════════════════════════"
-echo "  STREAMING FLIX — DEPLOY \$(date '+%d/%m/%Y %H:%M:%S')"
-echo "════════════════════════════════════════"
-
-echo ""
-echo "📥 [1/5] Baixando código via URL pré-assinada..."
-curl -sL -o /tmp/app_deploy.tar.gz "${PRESIGNED_URL}"
-
-echo ""
-echo "📦 [2/5] Extraindo código em \$APP_DIR..."
-mkdir -p "\$APP_DIR"
-tar xzf /tmp/app_deploy.tar.gz -C "\$APP_DIR"
-rm -f /tmp/app_deploy.tar.gz
-
-echo ""
-echo "📦 [3/5] Instalando dependências..."
-"\$VENV/pip" install -r "\$APP_DIR/requirements.txt" --quiet
-
-echo ""
-echo "💾 [4/5] Backup do banco e migrations..."
-cd "\$APP_DIR"
-cp db.sqlite3 "db.sqlite3.bak_\$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
-ls -t db.sqlite3.bak_* 2>/dev/null | tail -n +6 | xargs rm -f || true
-"\$VENV/python" manage.py migrate --noinput
-
-echo ""
-echo "🔄 [5/5] Reiniciando Gunicorn..."
-systemctl restart gunicorn
-sleep 2
-systemctl is-active --quiet gunicorn \
-  && echo "✅ Gunicorn rodando." \
-  || (echo "❌ Gunicorn falhou ao iniciar!" && exit 1)
-
-echo ""
-echo "════════════════════════════════════════"
-echo "  ✅ DEPLOY CONCLUÍDO COM SUCESSO"
-echo "════════════════════════════════════════"
-SCRIPT
-        )
-
         echo "🚀 Enviando comando via SSM..."
+
+        # Monta os comandos SSM como JSON usando jq (sem heredoc)
+        jq -n \
+          --arg url  "$PRESIGNED_URL" \
+          --arg dir  "$APP_DIR" \
+          '{commands: [
+            ("APP_DIR=" + $dir + " DOWNLOAD_URL=" + $url + " bash " + $dir + "/.github/scripts/deploy.sh")
+          ]}' > /tmp/ssm_params.json
+
         COMMAND_ID=$(aws ssm send-command \
           --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
           --comment "Streaming Flix Deploy" \
-          --parameters "$(jq -n --arg s "$DEPLOY_SCRIPT" '{"commands":[$s]}')" \
+          --parameters file:///tmp/ssm_params.json \
           --query "Command.CommandId" \
           --output text)
 
         echo "SSM Command ID: $COMMAND_ID"
 
-        # Aguardar conclusão (polling a cada 10s, máx 5min)
-        echo "⏳ Aguardando execução..."
+        # Polling até concluir (máx 5 min)
+        echo "⏳ Aguardando execução no servidor..."
         for i in $(seq 1 30); do
           STATUS=$(aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" \
             --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
             --query "StatusDetails" --output text 2>/dev/null || echo "Pending")
 
-          echo "  Status [$i/30]: $STATUS"
+          echo "  [$i/30] $STATUS"
 
           if [[ "$STATUS" == "Success" || "$STATUS" == "Failed" || \
                 "$STATUS" == "Cancelled" || "$STATUS" == "TimedOut" ]]; then
@@ -167,7 +128,7 @@ SCRIPT
           sleep 10
         done
 
-        # Exibir output do script
+        # Exibir output do servidor
         RESULT=$(aws ssm get-command-invocation \
           --command-id "$COMMAND_ID" \
           --instance-id "${{ secrets.EC2_INSTANCE_ID }}")
@@ -190,7 +151,7 @@ SCRIPT
           exit 1
         fi
 
-        echo "✅ Deploy concluído com sucesso (Status: $FINAL_STATUS)"
+        echo "✅ Deploy concluído (Status: $FINAL_STATUS)"
 
     # ── 6. LIMPAR ARTEFATO DO S3 (SEMPRE) ───────────────────────────────────
     - name: Cleanup S3 Deploy Artifact
