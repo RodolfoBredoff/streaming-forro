@@ -55,49 +55,33 @@ jobs:
           --protocol tcp --port 22 \
           --cidr ${{ steps.ip.outputs.ipv4 }}/32
 
-    # ── 6. ENVIAR CÓDIGO VIA RSYNC ───────────────────────────────────────────
-    # Rsync envia apenas os arquivos alterados, sem precisar de git na EC2.
-    # Arquivos sensíveis (.env, db.sqlite3, venv) são preservados no servidor.
-    - name: Sync Code to Server
-      env:
-        SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-        APP_DIR: ${{ secrets.APP_DIR }}
+    # ── 6. EMPACOTAR CÓDIGO ──────────────────────────────────────────────────
+    # Gera um tarball do código excluindo arquivos que ficam só no servidor
+    - name: Package Code
       run: |
-        # Validação: APP_DIR é obrigatório e deve ser um caminho absoluto
-        if [ -z "$APP_DIR" ]; then
-          echo "❌ Secret APP_DIR não está configurado!"
-          echo "   Acesse: GitHub → Settings → Secrets → Actions → New secret"
-          echo "   Nome: APP_DIR  |  Valor ex: /home/ubuntu/app"
-          exit 1
-        fi
+        tar czf /tmp/app_deploy.tar.gz \
+          --exclude='./.git' \
+          --exclude='./venv' \
+          --exclude='./.env' \
+          --exclude='./db.sqlite3' \
+          --exclude='./db.sqlite3.bak_*' \
+          --exclude='./__pycache__' \
+          --exclude='./*.pyc' \
+          --exclude='./staticfiles' \
+          .
+        echo "✅ Pacote gerado: $(du -sh /tmp/app_deploy.tar.gz | cut -f1)"
 
-        if [[ "$APP_DIR" != /* ]]; then
-          echo "❌ APP_DIR deve ser um caminho absoluto (começar com /). Valor atual: '$APP_DIR'"
-          exit 1
-        fi
+    # ── 7. ENVIAR PACOTE PARA O SERVIDOR ────────────────────────────────────
+    - name: Upload Code to Server
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ env.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: /tmp/app_deploy.tar.gz
+        target: /tmp/
 
-        echo "📂 Destino: ubuntu@$EC2_HOST:$APP_DIR"
-
-        mkdir -p ~/.ssh
-        echo "$SSH_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-
-        rsync -az --delete \
-          --exclude='venv/' \
-          --exclude='.env' \
-          --exclude='db.sqlite3' \
-          --exclude='db.sqlite3.bak_*' \
-          --exclude='*.pyc' \
-          --exclude='__pycache__/' \
-          --exclude='.git/' \
-          --exclude='staticfiles/' \
-          -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-          ./ "ubuntu@${EC2_HOST}:${APP_DIR}/"
-
-        echo "✅ Código sincronizado para $APP_DIR"
-
-    # ── 7. TAREFAS PÓS-DEPLOY NO SERVIDOR ───────────────────────────────────
+    # ── 8. TAREFAS PÓS-DEPLOY NO SERVIDOR ───────────────────────────────────
     - name: Post-Deploy Tasks
       uses: appleboy/ssh-action@master
       with:
@@ -115,14 +99,22 @@ jobs:
           echo "  STREAMING FLIX — DEPLOY $(date '+%d/%m/%Y %H:%M:%S')"
           echo "════════════════════════════════════════"
 
-          # ── 1. Dependências Python ───────────────
+          # ── 1. Extrair código ────────────────────
           echo ""
-          echo "📦 [1/4] Instalando dependências..."
+          echo "📦 [1/5] Extraindo código em $APP_DIR..."
+          mkdir -p "$APP_DIR"
+          tar xzf /tmp/app_deploy.tar.gz -C "$APP_DIR"
+          rm -f /tmp/app_deploy.tar.gz
+          echo "✅ Código extraído."
+
+          # ── 2. Dependências Python ───────────────
+          echo ""
+          echo "📦 [2/5] Instalando dependências..."
           "$VENV/pip" install -r "$APP_DIR/requirements.txt" --quiet
 
-          # ── 2. Backup do banco (SQLite) ──────────
+          # ── 3. Backup do banco (SQLite) ──────────
           echo ""
-          echo "💾 [2/4] Backup do banco de dados..."
+          echo "💾 [3/5] Backup do banco de dados..."
           cd "$APP_DIR"
           BACKUP_FILE="db.sqlite3.bak_$(date '+%Y%m%d_%H%M%S')"
           cp db.sqlite3 "$BACKUP_FILE" 2>/dev/null \
@@ -130,14 +122,14 @@ jobs:
             || echo "⚠️  Banco não encontrado, pulando backup."
           ls -t db.sqlite3.bak_* 2>/dev/null | tail -n +6 | xargs rm -f || true
 
-          # ── 3. Migrations ────────────────────────
+          # ── 4. Migrations ────────────────────────
           echo ""
-          echo "🗄️  [3/4] Rodando migrations..."
+          echo "🗄️  [4/5] Rodando migrations..."
           "$VENV/python" manage.py migrate --noinput
 
-          # ── 4. Reiniciar Gunicorn ────────────────
+          # ── 5. Reiniciar Gunicorn ────────────────
           echo ""
-          echo "🔄 [4/4] Reiniciando Gunicorn..."
+          echo "🔄 [5/5] Reiniciando Gunicorn..."
           sudo systemctl restart gunicorn
           sleep 2
           systemctl is-active --quiet gunicorn \
@@ -149,7 +141,7 @@ jobs:
           echo "  ✅ DEPLOY CONCLUÍDO COM SUCESSO"
           echo "════════════════════════════════════════"
 
-    # ── 8. HEALTH CHECK ──────────────────────────────────────────────────────
+    # ── 9. HEALTH CHECK ──────────────────────────────────────────────────────
     - name: Health Check
       run: |
         echo "⏳ Aguardando aplicação estabilizar..."
@@ -168,7 +160,7 @@ jobs:
           exit 1
         fi
 
-    # ── 9. FECHAR SSH (SEMPRE, mesmo em falha) ───────────────────────────────
+    # ── 10. FECHAR SSH (SEMPRE, mesmo em falha) ──────────────────────────────
     - name: Close SSH Port
       if: always()
       run: |
