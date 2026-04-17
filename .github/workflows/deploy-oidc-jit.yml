@@ -19,7 +19,7 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # ── 2. IP DO RUNNER (para liberar SSH just-in-time) ──────────────────────
+    # ── 2. IP DO RUNNER ──────────────────────────────────────────────────────
     - name: Get GitHub Runner IP
       id: ip
       run: echo "ipv4=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
@@ -55,19 +55,47 @@ jobs:
           --protocol tcp --port 22 \
           --cidr ${{ steps.ip.outputs.ipv4 }}/32
 
-    # ── 6. DEPLOY COMPLETO ───────────────────────────────────────────────────
-    # O servidor puxa o código direto do GitHub via Deploy Key (git pull).
-    # Não há transferência de arquivos pelo runner — mais simples e confiável.
+    # ── 6. EMPACOTAR E ENVIAR PARA O S3 ─────────────────────────────────────
+    # O runner já tem acesso ao S3 via OIDC. O arquivo fica em deploy/ por
+    # no máximo alguns segundos e é deletado ao final (step 9).
+    - name: Package Code and Upload to S3
+      run: |
+        echo "📦 Empacotando código..."
+        tar czf /tmp/app_deploy.tar.gz \
+          --exclude='./.git' \
+          --exclude='./venv' \
+          --exclude='./.env' \
+          --exclude='./db.sqlite3' \
+          --exclude='./db.sqlite3.bak_*' \
+          --exclude='./__pycache__' \
+          --exclude='./*.pyc' \
+          --exclude='./staticfiles' \
+          .
+
+        echo "☁️  Enviando para S3..."
+        aws s3 cp /tmp/app_deploy.tar.gz \
+          s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/deploy/app_deploy.tar.gz \
+          --no-progress
+
+        echo "✅ Pacote disponível no S3 ($(du -sh /tmp/app_deploy.tar.gz | cut -f1))"
+
+    # ── 7. DEPLOY NO SERVIDOR VIA SSH ────────────────────────────────────────
+    # O servidor baixa o pacote do S3 usando as credenciais temporárias do
+    # OIDC, passadas pelo ssh-action via envs. Sem git, sem chave extra.
     - name: Deploy
       uses: appleboy/ssh-action@master
+      env:
+        # Credenciais temporárias do OIDC — expiram após o job
+        S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
+        APP_DIR: ${{ secrets.APP_DIR }}
       with:
         host: ${{ env.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
+        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_DEFAULT_REGION,S3_BUCKET,APP_DIR
         script: |
           set -e
 
-          APP_DIR="${{ secrets.APP_DIR }}"
           VENV="$APP_DIR/venv/bin"
 
           echo ""
@@ -75,29 +103,33 @@ jobs:
           echo "  STREAMING FLIX — DEPLOY $(date '+%d/%m/%Y %H:%M:%S')"
           echo "════════════════════════════════════════"
 
-          # ── 1. Atualizar código via git ──────────
+          # ── 1. Baixar código do S3 ───────────────
           echo ""
-          echo "📥 [1/5] Atualizando código..."
+          echo "📥 [1/5] Baixando código do S3..."
+          aws s3 cp "s3://$S3_BUCKET/deploy/app_deploy.tar.gz" /tmp/app_deploy.tar.gz
+
+          # ── 2. Extrair (preserva .env, db, venv) ─
+          echo ""
+          echo "📦 [2/5] Extraindo código em $APP_DIR..."
+          mkdir -p "$APP_DIR"
+          tar xzf /tmp/app_deploy.tar.gz -C "$APP_DIR"
+          rm -f /tmp/app_deploy.tar.gz
+          echo "✅ Código extraído."
+
+          # ── 3. Dependências Python ───────────────
+          echo ""
+          echo "📦 [3/5] Instalando dependências..."
+          "$VENV/pip" install -r "$APP_DIR/requirements.txt" --quiet
+
+          # ── 4. Backup + Migrations ───────────────
+          echo ""
+          echo "💾 [4/5] Backup do banco e migrations..."
           cd "$APP_DIR"
-          git pull origin main
-
-          # ── 2. Dependências Python ───────────────
-          echo ""
-          echo "📦 [2/5] Instalando dependências..."
-          "$VENV/pip" install -r requirements.txt --quiet
-
-          # ── 3. Backup do banco (SQLite) ──────────
-          echo ""
-          echo "💾 [3/5] Backup do banco de dados..."
-          BACKUP_FILE="db.sqlite3.bak_$(date '+%Y%m%d_%H%M%S')"
-          cp db.sqlite3 "$BACKUP_FILE" 2>/dev/null \
-            && echo "✅ Backup: $BACKUP_FILE" \
+          BACKUP="db.sqlite3.bak_$(date '+%Y%m%d_%H%M%S')"
+          cp db.sqlite3 "$BACKUP" 2>/dev/null \
+            && echo "✅ Backup: $BACKUP" \
             || echo "⚠️  Banco não encontrado, pulando backup."
           ls -t db.sqlite3.bak_* 2>/dev/null | tail -n +6 | xargs rm -f || true
-
-          # ── 4. Migrations ────────────────────────
-          echo ""
-          echo "🗄️  [4/5] Rodando migrations..."
           "$VENV/python" manage.py migrate --noinput
 
           # ── 5. Reiniciar Gunicorn ────────────────
@@ -114,7 +146,7 @@ jobs:
           echo "  ✅ DEPLOY CONCLUÍDO COM SUCESSO"
           echo "════════════════════════════════════════"
 
-    # ── 7. HEALTH CHECK ──────────────────────────────────────────────────────
+    # ── 8. HEALTH CHECK ──────────────────────────────────────────────────────
     - name: Health Check
       run: |
         echo "⏳ Aguardando aplicação estabilizar..."
@@ -133,7 +165,14 @@ jobs:
           exit 1
         fi
 
-    # ── 8. FECHAR SSH (SEMPRE, mesmo em falha) ───────────────────────────────
+    # ── 9. LIMPAR ARTEFATO DO S3 (SEMPRE) ───────────────────────────────────
+    - name: Cleanup S3 Deploy Artifact
+      if: always()
+      run: |
+        aws s3 rm s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/deploy/app_deploy.tar.gz 2>/dev/null || true
+        echo "🗑️  Artefato removido do S3."
+
+    # ── 10. FECHAR SSH (SEMPRE) ──────────────────────────────────────────────
     - name: Close SSH Port
       if: always()
       run: |
