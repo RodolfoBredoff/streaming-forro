@@ -19,19 +19,14 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # ── 2. IP DO RUNNER ──────────────────────────────────────────────────────
-    - name: Get GitHub Runner IP
-      id: ip
-      run: echo "ipv4=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-    # ── 3. CREDENCIAIS AWS VIA OIDC ──────────────────────────────────────────
+    # ── 2. CREDENCIAIS AWS VIA OIDC ──────────────────────────────────────────
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v3
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    # ── 4. IP DA EC2 ─────────────────────────────────────────────────────────
+    # ── 3. IP DA EC2 (apenas para o health check) ────────────────────────────
     - name: Get EC2 Public IP
       run: |
         PUBLIC_IP=$(aws ec2 describe-instances \
@@ -47,26 +42,15 @@ jobs:
         echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
         echo "✅ IP detectado: $PUBLIC_IP"
 
-    # ── 5. ABRIR SSH (JIT) ───────────────────────────────────────────────────
-    - name: Open SSH Port
-      run: |
-        aws ec2 authorize-security-group-ingress \
-          --group-id ${{ secrets.AWS_SG_ID }} \
-          --protocol tcp --port 22 \
-          --cidr ${{ steps.ip.outputs.ipv4 }}/32
-
-    # ── 6. EMPACOTAR E ENVIAR PARA O S3 ─────────────────────────────────────
-    # O runner já tem acesso ao S3 via OIDC. O arquivo fica em deploy/ por
-    # no máximo alguns segundos e é deletado ao final (step 9).
+    # ── 4. EMPACOTAR E ENVIAR PARA O S3 ─────────────────────────────────────
+    # O runner faz upload para S3 e gera uma URL pré-assinada (válida 1h).
+    # A EC2 vai baixar via curl — sem precisar de credenciais AWS no servidor.
     - name: Package Code and Upload to S3
       env:
         S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
       run: |
-        # Validação dos secrets obrigatórios
         if [ -z "$S3_BUCKET" ]; then
           echo "❌ Secret AWS_STORAGE_BUCKET_NAME não configurado!"
-          echo "   GitHub → Settings → Secrets → Actions → New secret"
-          echo "   Nome: AWS_STORAGE_BUCKET_NAME | Valor: nome-do-seu-bucket"
           exit 1
         fi
         if [ -z "${{ secrets.APP_DIR }}" ]; then
@@ -86,81 +70,140 @@ jobs:
           --exclude='./staticfiles' \
           .
 
-        echo "☁️  Enviando para S3 (bucket: $S3_BUCKET)..."
+        echo "☁️  Enviando para S3..."
         aws s3 cp /tmp/app_deploy.tar.gz \
           "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" \
           --no-progress
 
-        echo "✅ Pacote disponível no S3 ($(du -sh /tmp/app_deploy.tar.gz | cut -f1))"
+        echo "🔗 Gerando URL pré-assinada..."
+        PRESIGNED_URL=$(aws s3 presign \
+          "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" \
+          --expires-in 3600)
 
-    # ── 7. DEPLOY NO SERVIDOR VIA SSH ────────────────────────────────────────
-    # O servidor baixa o pacote do S3 usando as credenciais temporárias do
-    # OIDC, passadas pelo ssh-action via envs. Sem git, sem chave extra.
-    - name: Deploy
-      uses: appleboy/ssh-action@master
+        echo "PRESIGNED_URL=$PRESIGNED_URL" >> $GITHUB_ENV
+        echo "✅ Pacote enviado ($(du -sh /tmp/app_deploy.tar.gz | cut -f1))"
+
+    # ── 5. DEPLOY VIA SSM ────────────────────────────────────────────────────
+    # SSM Run Command executa o script no servidor sem SSH nem chave.
+    # É o mesmo mecanismo que você usa para acessar via console AWS.
+    - name: Deploy via SSM
       env:
-        # Credenciais temporárias do OIDC — expiram após o job
-        S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
+        PRESIGNED_URL: ${{ env.PRESIGNED_URL }}
         APP_DIR: ${{ secrets.APP_DIR }}
-      with:
-        host: ${{ env.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_DEFAULT_REGION,S3_BUCKET,APP_DIR
-        script: |
-          set -e
+      run: |
+        # Monta o script de deploy como string
+        DEPLOY_SCRIPT=$(cat << SCRIPT
+set -e
 
-          VENV="$APP_DIR/venv/bin"
+APP_DIR="${APP_DIR}"
+VENV="\$APP_DIR/venv/bin"
 
-          echo ""
-          echo "════════════════════════════════════════"
-          echo "  STREAMING FLIX — DEPLOY $(date '+%d/%m/%Y %H:%M:%S')"
-          echo "════════════════════════════════════════"
+echo ""
+echo "════════════════════════════════════════"
+echo "  STREAMING FLIX — DEPLOY \$(date '+%d/%m/%Y %H:%M:%S')"
+echo "════════════════════════════════════════"
 
-          # ── 1. Baixar código do S3 ───────────────
-          echo ""
-          echo "📥 [1/5] Baixando código do S3..."
-          aws s3 cp "s3://$S3_BUCKET/deploy/app_deploy.tar.gz" /tmp/app_deploy.tar.gz
+echo ""
+echo "📥 [1/5] Baixando código via URL pré-assinada..."
+curl -sL -o /tmp/app_deploy.tar.gz "${PRESIGNED_URL}"
 
-          # ── 2. Extrair (preserva .env, db, venv) ─
-          echo ""
-          echo "📦 [2/5] Extraindo código em $APP_DIR..."
-          mkdir -p "$APP_DIR"
-          tar xzf /tmp/app_deploy.tar.gz -C "$APP_DIR"
-          rm -f /tmp/app_deploy.tar.gz
-          echo "✅ Código extraído."
+echo ""
+echo "📦 [2/5] Extraindo código em \$APP_DIR..."
+mkdir -p "\$APP_DIR"
+tar xzf /tmp/app_deploy.tar.gz -C "\$APP_DIR"
+rm -f /tmp/app_deploy.tar.gz
 
-          # ── 3. Dependências Python ───────────────
-          echo ""
-          echo "📦 [3/5] Instalando dependências..."
-          "$VENV/pip" install -r "$APP_DIR/requirements.txt" --quiet
+echo ""
+echo "📦 [3/5] Instalando dependências..."
+"\$VENV/pip" install -r "\$APP_DIR/requirements.txt" --quiet
 
-          # ── 4. Backup + Migrations ───────────────
-          echo ""
-          echo "💾 [4/5] Backup do banco e migrations..."
-          cd "$APP_DIR"
-          BACKUP="db.sqlite3.bak_$(date '+%Y%m%d_%H%M%S')"
-          cp db.sqlite3 "$BACKUP" 2>/dev/null \
-            && echo "✅ Backup: $BACKUP" \
-            || echo "⚠️  Banco não encontrado, pulando backup."
-          ls -t db.sqlite3.bak_* 2>/dev/null | tail -n +6 | xargs rm -f || true
-          "$VENV/python" manage.py migrate --noinput
+echo ""
+echo "💾 [4/5] Backup do banco e migrations..."
+cd "\$APP_DIR"
+cp db.sqlite3 "db.sqlite3.bak_\$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+ls -t db.sqlite3.bak_* 2>/dev/null | tail -n +6 | xargs rm -f || true
+"\$VENV/python" manage.py migrate --noinput
 
-          # ── 5. Reiniciar Gunicorn ────────────────
-          echo ""
-          echo "🔄 [5/5] Reiniciando Gunicorn..."
-          sudo systemctl restart gunicorn
-          sleep 2
-          systemctl is-active --quiet gunicorn \
-            && echo "✅ Gunicorn rodando." \
-            || (echo "❌ Gunicorn falhou ao iniciar!" && exit 1)
+echo ""
+echo "🔄 [5/5] Reiniciando Gunicorn..."
+systemctl restart gunicorn
+sleep 2
+systemctl is-active --quiet gunicorn \
+  && echo "✅ Gunicorn rodando." \
+  || (echo "❌ Gunicorn falhou ao iniciar!" && exit 1)
 
-          echo ""
-          echo "════════════════════════════════════════"
-          echo "  ✅ DEPLOY CONCLUÍDO COM SUCESSO"
-          echo "════════════════════════════════════════"
+echo ""
+echo "════════════════════════════════════════"
+echo "  ✅ DEPLOY CONCLUÍDO COM SUCESSO"
+echo "════════════════════════════════════════"
+SCRIPT
+        )
 
-    # ── 8. HEALTH CHECK ──────────────────────────────────────────────────────
+        echo "🚀 Enviando comando via SSM..."
+        COMMAND_ID=$(aws ssm send-command \
+          --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+          --document-name "AWS-RunShellScript" \
+          --comment "Streaming Flix Deploy" \
+          --parameters "$(jq -n --arg s "$DEPLOY_SCRIPT" '{"commands":[$s]}')" \
+          --query "Command.CommandId" \
+          --output text)
+
+        echo "SSM Command ID: $COMMAND_ID"
+
+        # Aguardar conclusão (polling a cada 10s, máx 5min)
+        echo "⏳ Aguardando execução..."
+        for i in $(seq 1 30); do
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --query "StatusDetails" --output text 2>/dev/null || echo "Pending")
+
+          echo "  Status [$i/30]: $STATUS"
+
+          if [[ "$STATUS" == "Success" || "$STATUS" == "Failed" || \
+                "$STATUS" == "Cancelled" || "$STATUS" == "TimedOut" ]]; then
+            break
+          fi
+          sleep 10
+        done
+
+        # Exibir output do script
+        RESULT=$(aws ssm get-command-invocation \
+          --command-id "$COMMAND_ID" \
+          --instance-id "${{ secrets.EC2_INSTANCE_ID }}")
+
+        FINAL_STATUS=$(echo "$RESULT" | jq -r '.StatusDetails')
+        OUTPUT=$(echo "$RESULT" | jq -r '.StandardOutputContent')
+        STDERR=$(echo "$RESULT" | jq -r '.StandardErrorContent')
+
+        echo ""
+        echo "════ OUTPUT DO SERVIDOR ════"
+        echo "$OUTPUT"
+
+        if [ -n "$STDERR" ] && [ "$STDERR" != "null" ] && [ "$STDERR" != "" ]; then
+          echo "════ STDERR ════"
+          echo "$STDERR"
+        fi
+
+        if [ "$FINAL_STATUS" != "Success" ]; then
+          echo "❌ Deploy falhou com status: $FINAL_STATUS"
+          exit 1
+        fi
+
+        echo "✅ Deploy concluído com sucesso (Status: $FINAL_STATUS)"
+
+    # ── 6. LIMPAR ARTEFATO DO S3 (SEMPRE) ───────────────────────────────────
+    - name: Cleanup S3 Deploy Artifact
+      if: always()
+      env:
+        S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
+      run: |
+        if [ -n "$S3_BUCKET" ]; then
+          aws s3 rm "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" 2>/dev/null || true
+          echo "🗑️  Artefato removido do S3."
+        fi
+
+    # ── 7. HEALTH CHECK ──────────────────────────────────────────────────────
     - name: Health Check
       run: |
         echo "⏳ Aguardando aplicação estabilizar..."
@@ -178,24 +221,3 @@ jobs:
           echo "❌ Aplicação não respondeu como esperado (HTTP $HTTP_CODE)"
           exit 1
         fi
-
-    # ── 9. LIMPAR ARTEFATO DO S3 (SEMPRE) ───────────────────────────────────
-    - name: Cleanup S3 Deploy Artifact
-      if: always()
-      env:
-        S3_BUCKET: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
-      run: |
-        if [ -n "$S3_BUCKET" ]; then
-          aws s3 rm "s3://${S3_BUCKET}/deploy/app_deploy.tar.gz" 2>/dev/null || true
-          echo "🗑️  Artefato removido do S3."
-        fi
-
-    # ── 10. FECHAR SSH (SEMPRE) ──────────────────────────────────────────────
-    - name: Close SSH Port
-      if: always()
-      run: |
-        aws ec2 revoke-security-group-ingress \
-          --group-id ${{ secrets.AWS_SG_ID }} \
-          --protocol tcp --port 22 \
-          --cidr ${{ steps.ip.outputs.ipv4 }}/32
-        echo "🔒 Porta SSH fechada."
