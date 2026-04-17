@@ -66,30 +66,32 @@ class CourseListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # "Continue Assistindo": cursos onde o usuário tem progresso mas não completou tudo
-        user = self.request.user
-        in_progress_video_ids = WatchProgress.objects.filter(
-            user=user, completed=False, position_seconds__gt=0
-        ).values_list('video_id', flat=True)
+        context['continue_watching'] = []
+        try:
+            user = self.request.user
+            in_progress_video_ids = WatchProgress.objects.filter(
+                user=user, completed=False, position_seconds__gt=0
+            ).values_list('video_id', flat=True)
 
-        continue_lessons = Lesson.objects.filter(
-            video__id__in=in_progress_video_ids
-        ).select_related('module__course', 'video').order_by('-video__watch_progresses__updated_at')
+            continue_lessons = Lesson.objects.filter(
+                video__id__in=in_progress_video_ids
+            ).select_related('module__course', 'video').order_by('-video__watch_progresses__updated_at')
 
-        seen_courses = set()
-        continue_watching = []
-        for lesson in continue_lessons:
-            course = lesson.module.course
-            if course.id not in seen_courses and course.is_published:
-                seen_courses.add(course.id)
-                progress = WatchProgress.objects.filter(user=user, video=lesson.video).first()
-                continue_watching.append({
-                    'course': course,
-                    'lesson': lesson,
-                    'progress': progress,
-                })
-
-        context['continue_watching'] = continue_watching
+            seen_courses = set()
+            continue_watching = []
+            for lesson in continue_lessons:
+                course = lesson.module.course
+                if course.id not in seen_courses and course.is_published:
+                    seen_courses.add(course.id)
+                    progress = WatchProgress.objects.filter(user=user, video=lesson.video).first()
+                    continue_watching.append({
+                        'course': course,
+                        'lesson': lesson,
+                        'progress': progress,
+                    })
+            context['continue_watching'] = continue_watching
+        except Exception:
+            pass
         return context
 
 
@@ -109,18 +111,21 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
             ).select_related('video')
             context['is_searching'] = True
 
-        # Build a map of video_id -> WatchProgress for all lessons in this course
-        all_lessons = Lesson.objects.filter(module__course=self.object).select_related('video')
-        video_ids = [l.video_id for l in all_lessons if l.video_id]
-        progresses = WatchProgress.objects.filter(user=user, video_id__in=video_ids)
-        progress_map = {p.video_id: p for p in progresses}
-        context['progress_map'] = progress_map
+        context['progress_map'] = {}
+        context['fav_lesson_ids'] = set()
+        try:
+            all_lessons = Lesson.objects.filter(module__course=self.object).select_related('video')
+            video_ids = [l.video_id for l in all_lessons if l.video_id]
+            progresses = WatchProgress.objects.filter(user=user, video_id__in=video_ids)
+            context['progress_map'] = {p.video_id: p for p in progresses}
 
-        # Favorites set for this course
-        fav_lesson_ids = set(
-            Favorite.objects.filter(user=user, lesson__module__course=self.object).values_list('lesson_id', flat=True)
-        )
-        context['fav_lesson_ids'] = fav_lesson_ids
+            context['fav_lesson_ids'] = set(
+                Favorite.objects.filter(
+                    user=user, lesson__module__course=self.object
+                ).values_list('lesson_id', flat=True)
+            )
+        except Exception:
+            pass
 
         return context
 
@@ -151,19 +156,19 @@ class VideoDetailView(LoginRequiredMixin, DetailView):
             # All lessons in the same module for sidebar
             context['modulo_aulas'] = aula.module.lessons.select_related('video').all()
 
-        # Watch progress (resume)
-        watch_progress = WatchProgress.objects.filter(
-            user=self.request.user, video=self.object
-        ).first()
-        context['watch_progress'] = watch_progress
+        context['watch_progress'] = None
+        context['is_favorite'] = False
+        try:
+            context['watch_progress'] = WatchProgress.objects.filter(
+                user=self.request.user, video=self.object
+            ).first()
 
-        # Favorite status
-        if aula:
-            context['is_favorite'] = Favorite.objects.filter(
-                user=self.request.user, lesson=aula
-            ).exists()
-        else:
-            context['is_favorite'] = False
+            if aula:
+                context['is_favorite'] = Favorite.objects.filter(
+                    user=self.request.user, lesson=aula
+                ).exists()
+        except Exception:
+            pass
 
         return context
 

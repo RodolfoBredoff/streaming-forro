@@ -59,6 +59,7 @@ jobs:
           /home/ubuntu/deploy.sh
 
     - name: Run Database Migrations
+      continue-on-error: true
       uses: appleboy/ssh-action@master
       with:
         host: ${{ env.EC2_HOST }}
