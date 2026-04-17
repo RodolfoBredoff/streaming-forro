@@ -55,34 +55,10 @@ jobs:
           --protocol tcp --port 22 \
           --cidr ${{ steps.ip.outputs.ipv4 }}/32
 
-    # ── 6. EMPACOTAR CÓDIGO ──────────────────────────────────────────────────
-    # Gera um tarball do código excluindo arquivos que ficam só no servidor
-    - name: Package Code
-      run: |
-        tar czf /tmp/app_deploy.tar.gz \
-          --exclude='./.git' \
-          --exclude='./venv' \
-          --exclude='./.env' \
-          --exclude='./db.sqlite3' \
-          --exclude='./db.sqlite3.bak_*' \
-          --exclude='./__pycache__' \
-          --exclude='./*.pyc' \
-          --exclude='./staticfiles' \
-          .
-        echo "✅ Pacote gerado: $(du -sh /tmp/app_deploy.tar.gz | cut -f1)"
-
-    # ── 7. ENVIAR PACOTE PARA O SERVIDOR ────────────────────────────────────
-    - name: Upload Code to Server
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ env.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        source: /tmp/app_deploy.tar.gz
-        target: /tmp/
-
-    # ── 8. TAREFAS PÓS-DEPLOY NO SERVIDOR ───────────────────────────────────
-    - name: Post-Deploy Tasks
+    # ── 6. DEPLOY COMPLETO ───────────────────────────────────────────────────
+    # O servidor puxa o código direto do GitHub via Deploy Key (git pull).
+    # Não há transferência de arquivos pelo runner — mais simples e confiável.
+    - name: Deploy
       uses: appleboy/ssh-action@master
       with:
         host: ${{ env.EC2_HOST }}
@@ -99,23 +75,20 @@ jobs:
           echo "  STREAMING FLIX — DEPLOY $(date '+%d/%m/%Y %H:%M:%S')"
           echo "════════════════════════════════════════"
 
-          # ── 1. Extrair código ────────────────────
+          # ── 1. Atualizar código via git ──────────
           echo ""
-          echo "📦 [1/5] Extraindo código em $APP_DIR..."
-          mkdir -p "$APP_DIR"
-          tar xzf /tmp/app_deploy.tar.gz -C "$APP_DIR"
-          rm -f /tmp/app_deploy.tar.gz
-          echo "✅ Código extraído."
+          echo "📥 [1/5] Atualizando código..."
+          cd "$APP_DIR"
+          git pull origin main
 
           # ── 2. Dependências Python ───────────────
           echo ""
           echo "📦 [2/5] Instalando dependências..."
-          "$VENV/pip" install -r "$APP_DIR/requirements.txt" --quiet
+          "$VENV/pip" install -r requirements.txt --quiet
 
           # ── 3. Backup do banco (SQLite) ──────────
           echo ""
           echo "💾 [3/5] Backup do banco de dados..."
-          cd "$APP_DIR"
           BACKUP_FILE="db.sqlite3.bak_$(date '+%Y%m%d_%H%M%S')"
           cp db.sqlite3 "$BACKUP_FILE" 2>/dev/null \
             && echo "✅ Backup: $BACKUP_FILE" \
@@ -141,7 +114,7 @@ jobs:
           echo "  ✅ DEPLOY CONCLUÍDO COM SUCESSO"
           echo "════════════════════════════════════════"
 
-    # ── 9. HEALTH CHECK ──────────────────────────────────────────────────────
+    # ── 7. HEALTH CHECK ──────────────────────────────────────────────────────
     - name: Health Check
       run: |
         echo "⏳ Aguardando aplicação estabilizar..."
@@ -160,7 +133,7 @@ jobs:
           exit 1
         fi
 
-    # ── 10. FECHAR SSH (SEMPRE, mesmo em falha) ──────────────────────────────
+    # ── 8. FECHAR SSH (SEMPRE, mesmo em falha) ───────────────────────────────
     - name: Close SSH Port
       if: always()
       run: |
