@@ -75,22 +75,55 @@
             cursor: pointer;
         }
 
-        /* ── HERO BANNER ── */
-        .hero {
+        /* ── HERO CARROSSEL ── */
+        .hero-carousel {
+            position: relative;
             height: 70vh;
-            min-height: 400px;
-            display: flex;
-            align-items: flex-end;
-            padding-bottom: 80px;
-            background:
-                linear-gradient(to top, var(--bg) 0%, rgba(20,20,20,0.3) 50%, rgba(20,20,20,0.1) 100%),
-                linear-gradient(to right, rgba(20,20,20,0.85) 0%, transparent 60%),
-                linear-gradient(135deg, #1a0a0a 0%, #2d0b0b 50%, #0a0a1a 100%);
-            background-size: cover;
-            background-position: center;
+            min-height: 420px;
+            overflow: hidden;
         }
 
-        .hero-content { padding: 0 40px; }
+        .hero-slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: flex-end;
+            padding-bottom: 90px;
+            opacity: 0;
+            transition: opacity 1.2s ease-in-out;
+            background-size: cover;
+            background-position: center;
+            pointer-events: none;
+        }
+        .hero-slide.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .hero-slide::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(to top, var(--bg) 0%, rgba(20,20,20,0.35) 55%, rgba(20,20,20,0.05) 100%),
+                linear-gradient(to right, rgba(20,20,20,0.9) 0%, rgba(20,20,20,0.3) 50%, transparent 80%);
+            z-index: 1;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            padding: 0 40px;
+            transition: opacity 0.8s ease 0.4s, transform 0.8s ease 0.4s;
+        }
+        .hero-slide:not(.active) .hero-content {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        .hero-slide.active .hero-content {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         .hero-eyebrow {
             font-size: 0.8rem;
             text-transform: uppercase;
@@ -129,6 +162,63 @@
             transition: background 0.2s, transform 0.15s;
         }
         .hero-btn:hover { background: var(--red-dark); color: #fff; transform: scale(1.03); }
+
+        /* Dots indicadores */
+        .hero-dots {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+        .hero-dot {
+            width: 28px;
+            height: 3px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: background 0.4s, width 0.4s;
+            border: none;
+            padding: 0;
+        }
+        .hero-dot.active { background: #fff; width: 44px; }
+
+        /* Botões prev/next */
+        .hero-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.18);
+            color: #fff;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            opacity: 0;
+            transition: opacity 0.3s, background 0.2s;
+        }
+        .hero-carousel:hover .hero-nav { opacity: 1; }
+        .hero-nav:hover { background: rgba(0,0,0,0.75); }
+        .hero-nav.prev { left: 20px; }
+        .hero-nav.next { right: 20px; }
+
+        /* Barra de progresso do slide */
+        .hero-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            background: var(--red);
+            z-index: 10;
+        }
 
         /* ── SECTIONS ── */
         .content-section { padding: 0 40px 50px; }
@@ -275,10 +365,11 @@
         /* ── RESPONSIVE ── */
         @media (max-width: 768px) {
             .navbar { padding: 14px 20px; }
-            .hero { height: 55vh; }
+            .hero-carousel { height: 55vh; }
             .hero-content { padding: 0 20px; }
             .content-section { padding: 0 20px 40px; }
             .cards-row { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+            .hero-nav { display: none; }
         }
     </style>
 </head>
@@ -306,26 +397,49 @@
     </div>
 </nav>
 
-<!-- HERO -->
-{% with courses.0 as featured %}
-{% if featured %}
-<section class="hero" {% if featured.thumbnail %}
-    style="background:
-        linear-gradient(to top, #141414 0%, rgba(20,20,20,0.3) 50%, rgba(20,20,20,0.1) 100%),
-        linear-gradient(to right, rgba(20,20,20,0.85) 0%, transparent 60%),
-        url('{% if "http" in featured.thumbnail %}{{ featured.thumbnail }}{% else %}https://d1qx0sqd14bw8g.cloudfront.net/{{ featured.thumbnail }}{% endif %}') center/cover no-repeat"
-{% endif %}>
-    <div class="hero-content">
-        <div class="hero-eyebrow"><i class="bi bi-collection-play-fill"></i> Destaque</div>
-        <h1 class="hero-title">{{ featured.title }}</h1>
-        <p class="hero-desc">{{ featured.description|truncatewords:25 }}</p>
-        <a href="{% url 'course_detail' featured.pk %}" class="hero-btn">
-            <i class="bi bi-play-fill"></i> Assistir agora
-        </a>
+<!-- HERO CARROSSEL -->
+{% if courses %}
+<section class="hero-carousel" id="heroCarousel">
+
+    {% for course in courses %}
+    <div class="hero-slide{% if forloop.first %} active{% endif %}"
+         data-index="{{ forloop.counter0 }}"
+         {% if course.thumbnail %}
+         style="background-image: url('{% if "http" in course.thumbnail %}{{ course.thumbnail }}{% else %}https://d1qx0sqd14bw8g.cloudfront.net/{{ course.thumbnail }}{% endif %}')"
+         {% else %}
+         style="background: linear-gradient(135deg, #1a0a0a 0%, #2d0b0b 50%, #0a0a1a 100%)"
+         {% endif %}>
+        <div class="hero-content">
+            <div class="hero-eyebrow"><i class="bi bi-collection-play-fill"></i> Destaque</div>
+            <h1 class="hero-title">{{ course.title }}</h1>
+            <p class="hero-desc">{{ course.description|truncatewords:25 }}</p>
+            <a href="{% url 'course_detail' course.pk %}" class="hero-btn">
+                <i class="bi bi-play-fill"></i> Assistir agora
+            </a>
+        </div>
     </div>
+    {% endfor %}
+
+    <!-- Botões de navegação -->
+    <button class="hero-nav prev" id="heroPrev" aria-label="Anterior">
+        <i class="bi bi-chevron-left"></i>
+    </button>
+    <button class="hero-nav next" id="heroNext" aria-label="Próximo">
+        <i class="bi bi-chevron-right"></i>
+    </button>
+
+    <!-- Dots indicadores -->
+    <div class="hero-dots" id="heroDots">
+        {% for course in courses %}
+        <button class="hero-dot{% if forloop.first %} active{% endif %}" data-target="{{ forloop.counter0 }}" aria-label="Slide {{ forloop.counter }}"></button>
+        {% endfor %}
+    </div>
+
+    <!-- Barra de progresso -->
+    <div class="hero-progress" id="heroProgress"></div>
+
 </section>
 {% endif %}
-{% endwith %}
 
 <main style="padding-top: 40px;">
 
@@ -398,11 +512,100 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Navbar scroll effect
+    /* ── Navbar scroll ── */
     const nav = document.getElementById('mainNav');
     window.addEventListener('scroll', () => {
         nav.classList.toggle('scrolled', window.scrollY > 50);
     });
+
+    /* ── Hero Carrossel ── */
+    (function () {
+        const INTERVAL   = 5000;   // ms entre slides
+        const TRANSITION = 1200;   // ms do fade (deve bater com o CSS)
+
+        const slides   = Array.from(document.querySelectorAll('.hero-slide'));
+        const dots     = Array.from(document.querySelectorAll('.hero-dot'));
+        const progress = document.getElementById('heroProgress');
+        const prevBtn  = document.getElementById('heroPrev');
+        const nextBtn  = document.getElementById('heroNext');
+
+        if (slides.length <= 1) return; // sem carrossel se só 1 curso
+
+        let current   = 0;
+        let timer     = null;
+        let progTimer = null;
+        let paused    = false;
+
+        function goTo(index) {
+            slides[current].classList.remove('active');
+            dots[current].classList.remove('active');
+
+            current = (index + slides.length) % slides.length;
+
+            slides[current].classList.add('active');
+            dots[current].classList.add('active');
+
+            resetProgress();
+        }
+
+        function next() { goTo(current + 1); }
+        function prev() { goTo(current - 1); }
+
+        /* Barra de progresso animada */
+        function resetProgress() {
+            if (progress) {
+                progress.style.transition = 'none';
+                progress.style.width = '0%';
+                // força reflow para reiniciar a transição
+                void progress.offsetWidth;
+                progress.style.transition = `width ${INTERVAL}ms linear`;
+                progress.style.width = '100%';
+            }
+        }
+
+        /* Timer automático */
+        function startTimer() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                if (!paused) next();
+            }, INTERVAL);
+        }
+
+        /* Pausa quando o mouse está sobre o carrossel */
+        const carousel = document.getElementById('heroCarousel');
+        carousel.addEventListener('mouseenter', () => {
+            paused = true;
+            if (progress) progress.style.animationPlayState = 'paused';
+        });
+        carousel.addEventListener('mouseleave', () => {
+            paused = false;
+            if (progress) progress.style.animationPlayState = 'running';
+        });
+
+        /* Dots */
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                goTo(parseInt(dot.dataset.target, 10));
+                startTimer();
+            });
+        });
+
+        /* Botões prev/next */
+        prevBtn.addEventListener('click', () => { prev(); startTimer(); });
+        nextBtn.addEventListener('click', () => { next(); startTimer(); });
+
+        /* Swipe em touch */
+        let touchStartX = 0;
+        carousel.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+        carousel.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) > 50) { dx < 0 ? next() : prev(); startTimer(); }
+        });
+
+        /* Inicializa */
+        resetProgress();
+        startTimer();
+    })();
 </script>
 </body>
 </html>
