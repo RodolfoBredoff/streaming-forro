@@ -220,7 +220,7 @@
         /* ── BOTTOM CONTROLS ── */
         .bottom-controls {
             position: absolute;
-            bottom: 52px;
+            bottom: 76px;
             left: 0;
             right: 0;
             background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
@@ -232,6 +232,58 @@
             transition: opacity 0.3s;
         }
         .bottom-controls.hidden { opacity: 0; pointer-events: none; }
+
+        /* ── SPEED CONTROL ── */
+        .speed-control {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .speed-btn {
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #fff;
+            border-radius: 6px;
+            padding: 7px 13px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            transition: background 0.2s, border-color 0.2s;
+            white-space: nowrap;
+        }
+        .speed-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); }
+        .speed-menu {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18,18,18,0.97);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 90px;
+            z-index: 60;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+        .speed-menu.open { display: block; }
+        .speed-option {
+            display: block;
+            width: 100%;
+            padding: 9px 16px;
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 0.83rem;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .speed-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .speed-option.active { color: var(--red); }
 
         .nav-btn {
             display: flex;
@@ -363,8 +415,28 @@
                 {% endif %}
             </div>
 
-            <div class="completed-badge" id="completedBadge">
-                <i class="bi bi-check-circle-fill"></i> Aula concluída!
+            <div class="d-flex align-items-center gap-3">
+                <div class="completed-badge" id="completedBadge">
+                    <i class="bi bi-check-circle-fill"></i> Aula concluída!
+                </div>
+
+                <!-- SPEED CONTROL -->
+                <div class="speed-control" id="speedControl">
+                    <button class="speed-btn" id="speedBtn" title="Velocidade de reprodução">
+                        <i class="bi bi-speedometer2"></i> <span id="speedLabel">1×</span>
+                    </button>
+                    <div class="speed-menu" id="speedMenu">
+                        <button class="speed-option" data-speed="0.5">0.5×</button>
+                        <button class="speed-option" data-speed="0.75">0.75×</button>
+                        <button class="speed-option active" data-speed="1">1×</button>
+                        <button class="speed-option" data-speed="1.25">1.25×</button>
+                        <button class="speed-option" data-speed="1.5">1.5×</button>
+                        <button class="speed-option" data-speed="1.75">1.75×</button>
+                        <button class="speed-option" data-speed="2">2×</button>
+                        <button class="speed-option" data-speed="2.5">2.5×</button>
+                        <button class="speed-option" data-speed="3">3×</button>
+                    </div>
+                </div>
             </div>
 
             <div class="d-flex gap-2">
@@ -576,6 +648,36 @@
     document.addEventListener('touchstart', showControls);
     videoEl.addEventListener('play', showControls);
     videoEl.addEventListener('pause', showControls);
+
+    // ── SPEED CONTROL ──
+    const speedBtn = document.getElementById('speedBtn');
+    const speedMenu = document.getElementById('speedMenu');
+    const speedLabel = document.getElementById('speedLabel');
+    const speedOptions = document.querySelectorAll('.speed-option');
+
+    if (speedBtn && speedMenu) {
+        speedBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            speedMenu.classList.toggle('open');
+        });
+
+        speedOptions.forEach(opt => {
+            opt.addEventListener('click', () => {
+                const speed = parseFloat(opt.dataset.speed);
+                videoEl.playbackRate = speed;
+                speedLabel.textContent = speed % 1 === 0 ? speed + '×' : speed + '×';
+                speedOptions.forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                speedMenu.classList.remove('open');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!speedBtn.contains(e.target)) {
+                speedMenu.classList.remove('open');
+            }
+        });
+    }
 
     // ── KEYBOARD SHORTCUTS ──
     document.addEventListener('keydown', (e) => {
