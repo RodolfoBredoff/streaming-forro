@@ -223,8 +223,7 @@
             bottom: 76px;
             left: 0;
             right: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
-            padding: 40px 24px 16px;
+            padding: 12px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -244,8 +243,8 @@
             border: 1px solid rgba(255,255,255,0.25);
             color: #fff;
             border-radius: 6px;
-            padding: 7px 13px;
-            font-size: 0.82rem;
+            padding: 6px 11px;
+            font-size: 0.78rem;
             font-weight: 700;
             cursor: pointer;
             letter-spacing: 0.03em;
@@ -257,13 +256,12 @@
             display: none;
             position: absolute;
             bottom: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
             background: rgba(18,18,18,0.97);
             border: 1px solid var(--border);
             border-radius: 8px;
             overflow: hidden;
-            min-width: 90px;
+            min-width: 84px;
             z-index: 60;
             backdrop-filter: blur(10px);
             box-shadow: 0 4px 20px rgba(0,0,0,0.6);
@@ -272,11 +270,11 @@
         .speed-option {
             display: block;
             width: 100%;
-            padding: 9px 16px;
+            padding: 8px 14px;
             background: none;
             border: none;
             color: #ccc;
-            font-size: 0.83rem;
+            font-size: 0.8rem;
             font-weight: 600;
             text-align: center;
             cursor: pointer;
@@ -285,25 +283,27 @@
         .speed-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .speed-option.active { color: var(--red); }
 
+        /* ── NAV BUTTONS (icon only) ── */
         .nav-btn {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.88rem;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            font-size: 1.15rem;
             text-decoration: none;
             border: none;
             cursor: pointer;
-            transition: transform 0.15s, background 0.2s;
+            transition: transform 0.15s, background 0.2s, color 0.2s;
+            flex-shrink: 0;
         }
-        .nav-btn:hover { transform: scale(1.04); }
-        .nav-btn:active { transform: scale(0.97); }
-        .nav-btn-prev { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
-        .nav-btn-prev:hover { background: rgba(255,255,255,0.2); color: #fff; }
-        .nav-btn-next { background: var(--red); color: #fff; }
-        .nav-btn-next:hover { background: var(--red-dark); color: #fff; }
+        .nav-btn:hover { transform: scale(1.1); }
+        .nav-btn:active { transform: scale(0.95); }
+        .nav-btn-prev { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.25); }
+        .nav-btn-prev:hover { background: rgba(255,255,255,0.25); color: #fff; }
+        .nav-btn-next { background: transparent; color: var(--red); font-size: 1.5rem; }
+        .nav-btn-next:hover { color: var(--red-dark); }
 
         .completed-badge {
             display: none;
@@ -407,19 +407,9 @@
 
         <!-- BOTTOM CONTROLS -->
         <div class="bottom-controls" id="bottomControls">
-            <div class="d-flex gap-2">
-                {% if aula_anterior and aula_anterior.video %}
-                <a href="{% url 'video_detail' aula_anterior.video.pk %}" class="nav-btn nav-btn-prev">
-                    <i class="bi bi-skip-start-fill"></i> Anterior
-                </a>
-                {% endif %}
-            </div>
 
-            <div class="d-flex align-items-center gap-3">
-                <div class="completed-badge" id="completedBadge">
-                    <i class="bi bi-check-circle-fill"></i> Aula concluída!
-                </div>
-
+            <!-- LEFT: speed + anterior -->
+            <div class="d-flex align-items-center gap-2">
                 <!-- SPEED CONTROL -->
                 <div class="speed-control" id="speedControl">
                     <button class="speed-btn" id="speedBtn" title="Velocidade de reprodução">
@@ -437,15 +427,28 @@
                         <button class="speed-option" data-speed="3">3×</button>
                     </div>
                 </div>
-            </div>
 
-            <div class="d-flex gap-2">
-                {% if proxima_aula and proxima_aula.video %}
-                <a href="{% url 'video_detail' proxima_aula.video.pk %}" class="nav-btn nav-btn-next" id="btnNextLesson">
-                    Próxima Aula <i class="bi bi-skip-end-fill"></i>
+                {% if aula_anterior and aula_anterior.video %}
+                <a href="{% url 'video_detail' aula_anterior.video.pk %}" class="nav-btn nav-btn-prev" title="Aula Anterior">
+                    <i class="bi bi-skip-start-fill"></i>
                 </a>
                 {% endif %}
             </div>
+
+            <!-- CENTER: badge concluída -->
+            <div class="completed-badge" id="completedBadge">
+                <i class="bi bi-check-circle-fill"></i> Aula concluída!
+            </div>
+
+            <!-- RIGHT: próxima aula -->
+            <div class="d-flex gap-2">
+                {% if proxima_aula and proxima_aula.video %}
+                <a href="{% url 'video_detail' proxima_aula.video.pk %}" class="nav-btn nav-btn-next" id="btnNextLesson" title="Próxima Aula">
+                    <i class="bi bi-skip-end-fill"></i>
+                </a>
+                {% endif %}
+            </div>
+
         </div>
 
         <!-- AUTOPLAY OVERLAY -->
