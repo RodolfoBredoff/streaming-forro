@@ -232,31 +232,40 @@
         }
         .bottom-controls.hidden { opacity: 0; pointer-events: none; }
 
-        /* ── SPEED CONTROL ── */
-        .speed-control {
-            position: relative;
+        /* ── SPEED CONTROL (overlay na linha dos controles nativos) ── */
+        .speed-overlay {
+            position: absolute;
+            bottom: 8px;
+            right: 130px;
+            z-index: 10;
             display: flex;
             align-items: center;
+            transition: opacity 0.3s;
         }
+        .speed-overlay.hidden { opacity: 0; pointer-events: none; }
         .speed-btn {
-            background: rgba(0,0,0,0.55);
-            border: 1px solid rgba(255,255,255,0.25);
+            background: transparent;
+            border: none;
             color: #fff;
-            border-radius: 6px;
-            padding: 6px 11px;
             font-size: 0.78rem;
             font-weight: 700;
             cursor: pointer;
-            letter-spacing: 0.03em;
-            transition: background 0.2s, border-color 0.2s;
+            padding: 4px 7px;
+            border-radius: 4px;
+            letter-spacing: 0.02em;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+            transition: background 0.2s;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 3px;
         }
-        .speed-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); }
+        .speed-btn:hover { background: rgba(255,255,255,0.18); }
         .speed-menu {
             display: none;
             position: absolute;
             bottom: calc(100% + 8px);
-            left: 0;
+            right: 0;
             background: rgba(18,18,18,0.97);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -408,26 +417,8 @@
         <!-- BOTTOM CONTROLS -->
         <div class="bottom-controls" id="bottomControls">
 
-            <!-- LEFT: speed + anterior -->
+            <!-- LEFT: anterior -->
             <div class="d-flex align-items-center gap-2">
-                <!-- SPEED CONTROL -->
-                <div class="speed-control" id="speedControl">
-                    <button class="speed-btn" id="speedBtn" title="Velocidade de reprodução">
-                        <i class="bi bi-speedometer2"></i> <span id="speedLabel">1×</span>
-                    </button>
-                    <div class="speed-menu" id="speedMenu">
-                        <button class="speed-option" data-speed="0.5">0.5×</button>
-                        <button class="speed-option" data-speed="0.75">0.75×</button>
-                        <button class="speed-option active" data-speed="1">1×</button>
-                        <button class="speed-option" data-speed="1.25">1.25×</button>
-                        <button class="speed-option" data-speed="1.5">1.5×</button>
-                        <button class="speed-option" data-speed="1.75">1.75×</button>
-                        <button class="speed-option" data-speed="2">2×</button>
-                        <button class="speed-option" data-speed="2.5">2.5×</button>
-                        <button class="speed-option" data-speed="3">3×</button>
-                    </div>
-                </div>
-
                 {% if aula_anterior and aula_anterior.video %}
                 <a href="{% url 'video_detail' aula_anterior.video.pk %}" class="nav-btn nav-btn-prev" title="Aula Anterior">
                     <i class="bi bi-skip-start-fill"></i>
@@ -449,6 +440,24 @@
                 {% endif %}
             </div>
 
+        </div>
+
+        <!-- SPEED OVERLAY (linha dos controles nativos) -->
+        <div class="speed-overlay" id="speedOverlay">
+            <button class="speed-btn" id="speedBtn" title="Velocidade de reprodução">
+                <i class="bi bi-speedometer2"></i> <span id="speedLabel">1×</span>
+            </button>
+            <div class="speed-menu" id="speedMenu">
+                <button class="speed-option" data-speed="0.5">0.5×</button>
+                <button class="speed-option" data-speed="0.75">0.75×</button>
+                <button class="speed-option active" data-speed="1">1×</button>
+                <button class="speed-option" data-speed="1.25">1.25×</button>
+                <button class="speed-option" data-speed="1.5">1.5×</button>
+                <button class="speed-option" data-speed="1.75">1.75×</button>
+                <button class="speed-option" data-speed="2">2×</button>
+                <button class="speed-option" data-speed="2.5">2.5×</button>
+                <button class="speed-option" data-speed="3">3×</button>
+            </div>
         </div>
 
         <!-- AUTOPLAY OVERLAY -->
@@ -509,6 +518,7 @@
     const videoEl = document.getElementById('videoPlayer');
     const topbar = document.getElementById('topbar');
     const bottomControls = document.getElementById('bottomControls');
+    const speedOverlay = document.getElementById('speedOverlay');
     const completedBadge = document.getElementById('completedBadge');
     const autoplayOverlay = document.getElementById('autoplayOverlay');
     const autoplayCountEl = document.getElementById('autoplayCount');
@@ -639,11 +649,13 @@
     function showControls() {
         topbar.classList.remove('hidden');
         bottomControls.classList.remove('hidden');
+        if (speedOverlay) speedOverlay.classList.remove('hidden');
         clearTimeout(mouseTimer);
         mouseTimer = setTimeout(() => {
             if (!videoEl.paused) {
                 topbar.classList.add('hidden');
                 bottomControls.classList.add('hidden');
+                if (speedOverlay) speedOverlay.classList.add('hidden');
             }
         }, 3500);
     }
